@@ -8,12 +8,19 @@ import {
   savePrivateState,
 } from "./core.js";
 import {
-  checkExerciseAnswer,
+  gradeExerciseBlock,
+  gradeExerciseLine,
   recordExerciseAttempt,
-  selectNextExerciseId,
+  selectNextExerciseBlockId,
   toggleExerciseBoost,
 } from "./exercise-core.js";
-import { LESSON_ONE_EXERCISES } from "./exercises.js";
+import { LESSON_ONE_BLOCKS, LESSON_ONE_EXERCISES } from "./exercises.js";
+import {
+  ratePronunciation,
+  selectNextPronunciationItemId,
+  togglePronunciationBoost,
+} from "./pronunciation-core.js";
+import { PRONUNCIATION_ITEMS, PRONUNCIATION_MODULES } from "./pronunciation.js";
 
 const publicCards = [
   { id: "public-bonjour", prompt: "Добрый день", answer: "Bonjour", deck: "Демо-урок" },
@@ -26,6 +33,8 @@ const publicCards = [
 
 // Set this to a protected server endpoint only. Never place an API key in this file.
 const TTS_BACKEND_URL = "";
+const exerciseMap = new Map(LESSON_ONE_EXERCISES.map((exercise) => [exercise.id, exercise]));
+const pronunciationModuleMap = new Map(PRONUNCIATION_MODULES.map((module) => [module.id, module]));
 
 const elements = {
   prompt: document.querySelector("#card-prompt"),
@@ -51,38 +60,65 @@ const elements = {
   saveError: document.querySelector("#save-error"),
   practiceSaveError: document.querySelector("#practice-save-error"),
   practiceMode: document.querySelector("#practice-mode"),
+  pronunciationMode: document.querySelector("#pronunciation-mode"),
   exerciseMode: document.querySelector("#exercise-mode"),
   practicePanel: document.querySelector("#practice-panel"),
+  pronunciationPanel: document.querySelector("#pronunciation-panel"),
   exercisePanel: document.querySelector("#exercise-panel"),
   practiceActions: document.querySelector("#practice-actions"),
+  pronunciationCounter: document.querySelector("#pronunciation-counter"),
+  pronunciationKnownCount: document.querySelector("#pronunciation-known-count"),
+  pronunciationDueCount: document.querySelector("#pronunciation-due-count"),
+  pronunciationBoostCount: document.querySelector("#pronunciation-boost-count"),
+  pronunciationModule: document.querySelector("#pronunciation-module"),
+  pronunciationBoost: document.querySelector("#pronunciation-boost"),
+  pronunciationPattern: document.querySelector("#pronunciation-pattern"),
+  pronunciationExplanation: document.querySelector("#pronunciation-explanation"),
+  pronunciationModelWord: document.querySelector("#pronunciation-model-word"),
+  pronunciationListen: document.querySelector("#pronunciation-listen"),
+  pronunciationPracticeWords: document.querySelector("#pronunciation-practice-words"),
+  pronunciationBilan: document.querySelector("#pronunciation-bilan"),
+  pronunciationListenBilan: document.querySelector("#pronunciation-listen-bilan"),
+  pronunciationRepeat: document.querySelector("#pronunciation-repeat"),
+  pronunciationKnown: document.querySelector("#pronunciation-known"),
+  pronunciationSaveError: document.querySelector("#pronunciation-save-error"),
   exerciseCounter: document.querySelector("#exercise-counter"),
   exerciseCorrectCount: document.querySelector("#exercise-correct-count"),
   exerciseRetryCount: document.querySelector("#exercise-retry-count"),
   exerciseBoostCount: document.querySelector("#exercise-boost-count"),
-  exerciseTopic: document.querySelector("#exercise-topic"),
-  exerciseBoost: document.querySelector("#exercise-boost"),
+  exerciseBlockTitle: document.querySelector("#exercise-block-title"),
   exerciseInstruction: document.querySelector("#exercise-instruction"),
-  exercisePrompt: document.querySelector("#exercise-prompt"),
-  exerciseForm: document.querySelector("#exercise-form"),
-  exerciseAnswer: document.querySelector("#exercise-answer"),
-  exerciseSubmit: document.querySelector("#exercise-submit"),
-  exerciseFeedback: document.querySelector("#exercise-feedback"),
-  exerciseFeedbackStatus: document.querySelector("#exercise-feedback-status"),
-  exerciseCanonical: document.querySelector("#exercise-canonical"),
-  exerciseExplanation: document.querySelector("#exercise-explanation"),
-  exerciseNext: document.querySelector("#exercise-next"),
+  exerciseRows: document.querySelector("#exercise-rows"),
+  exerciseCheckAll: document.querySelector("#exercise-check-all"),
+  exerciseRetryWrong: document.querySelector("#exercise-retry-wrong"),
+  exerciseNextBlock: document.querySelector("#exercise-next-block"),
   exerciseSaveError: document.querySelector("#exercise-save-error"),
 };
+
+const modes = [
+  { id: "cards", tab: elements.practiceMode, panel: elements.practicePanel },
+  { id: "pronunciation", tab: elements.pronunciationMode, panel: elements.pronunciationPanel },
+  { id: "exercises", tab: elements.exerciseMode, panel: elements.exercisePanel },
+];
 
 let privateState = loadPrivateState(window.localStorage);
 let cards = [...publicCards, ...privateState.cards];
 let currentIndex = 0;
 let session = createSession(cards[currentIndex]);
-let currentExerciseId = selectNextExerciseId(
-  LESSON_ONE_EXERCISES,
-  privateState.exerciseProgress,
-  null,
-);
+let currentExerciseBlockId = selectNextExerciseBlockId(LESSON_ONE_BLOCKS, privateState.exerciseProgress, null);
+let exerciseVisibleIds = null;
+let currentPronunciationId = selectNextPronunciationItemId(PRONUNCIATION_ITEMS, privateState.pronunciationProgress, null);
+
+function persistPrivateState(patch, errorElement) {
+  const nextState = { ...privateState, ...patch };
+  if (!savePrivateState(window.localStorage, nextState)) {
+    if (errorElement) errorElement.hidden = false;
+    return false;
+  }
+  privateState = nextState;
+  if (errorElement) errorElement.hidden = true;
+  return true;
+}
 
 function isDue(card, now = Date.now()) {
   const dueAt = privateState.progress[card.id]?.dueAt;
@@ -91,13 +127,11 @@ function isDue(card, now = Date.now()) {
 
 function updateStats() {
   elements.cardCount.textContent = String(cards.length);
-  elements.knownCount.textContent = String(
-    Object.values(privateState.progress).filter((item) => item.lastRating === "known").length,
-  );
+  elements.knownCount.textContent = String(Object.values(privateState.progress).filter((item) => item.lastRating === "known").length);
   elements.dueCount.textContent = String(cards.filter((card) => isDue(card)).length);
 }
 
-function render() {
+function renderCard() {
   const card = session.card;
   elements.prompt.textContent = card.prompt;
   elements.deckLabel.textContent = (card.deck ?? "Мои карточки").toUpperCase();
@@ -108,67 +142,170 @@ function render() {
   updateStats();
 }
 
-function currentExercise() {
-  return LESSON_ONE_EXERCISES.find((exercise) => exercise.id === currentExerciseId);
+function currentExerciseBlock() {
+  return LESSON_ONE_BLOCKS.find((block) => block.id === currentExerciseBlockId);
 }
 
 function updateExerciseStats() {
   const progress = privateState.exerciseProgress;
-  elements.exerciseCorrectCount.textContent = String(
-    Object.values(progress.attempts).filter((attempt) => attempt.correct).length,
-  );
+  elements.exerciseCorrectCount.textContent = String(Object.values(progress.attempts).filter((attempt) => attempt.correct).length);
   elements.exerciseRetryCount.textContent = String(progress.retryQueue.length);
   elements.exerciseBoostCount.textContent = String(progress.boostedIds.length);
 }
 
-function updateBoostButton(exercise) {
+function showExerciseRowResult(row, result, reveal) {
+  row.classList.toggle("is-correct", result.isCorrect);
+  row.classList.toggle("is-wrong", !result.isCorrect);
+  row.querySelector(".exercise-row-status").textContent = result.isCorrect ? "Верно ✓" : result.isAnswered ? "Пока нет ✕" : "Введите ответ ✕";
+  const correction = row.querySelector(".exercise-row-correction");
+  const showCorrection = reveal && !result.isCorrect;
+  correction.hidden = !showCorrection;
+  if (showCorrection) {
+    correction.querySelector("strong").textContent = `Правильный ответ: ${result.canonicalAnswer}`;
+    correction.querySelector("p").textContent = result.explanation;
+  }
+}
+
+function createExerciseRow(exercise, position) {
+  const row = document.createElement("div");
+  row.className = "exercise-row";
+  row.dataset.exerciseId = exercise.id;
+  const heading = document.createElement("div");
+  heading.className = "exercise-row-heading";
+  const prompt = document.createElement("label");
+  const inputId = `exercise-answer-${exercise.id}`;
+  prompt.htmlFor = inputId;
+  prompt.textContent = `${position}. ${exercise.prompt}`;
+  const boost = document.createElement("button");
+  boost.type = "button";
+  boost.className = "boost-button row-boost";
   const isBoosted = privateState.exerciseProgress.boostedIds.includes(exercise.id);
-  elements.exerciseBoost.setAttribute("aria-pressed", String(isBoosted));
-  elements.exerciseBoost.textContent = isBoosted ? "★ Boost включён" : "☆ Boost";
+  boost.setAttribute("aria-pressed", String(isBoosted));
+  boost.setAttribute("aria-label", `${isBoosted ? "Отключить" : "Включить"} Boost: ${exercise.prompt}`);
+  boost.textContent = isBoosted ? "★" : "☆";
+  heading.append(prompt, boost);
+  const input = document.createElement("input");
+  input.id = inputId;
+  input.lang = "fr";
+  input.autocomplete = "off";
+  input.setAttribute("autocapitalize", "sentences");
+  input.spellcheck = true;
+  input.maxLength = 180;
+  const status = document.createElement("p");
+  status.className = "exercise-row-status";
+  status.setAttribute("aria-live", "polite");
+  const correction = document.createElement("div");
+  correction.className = "exercise-row-correction";
+  correction.hidden = true;
+  correction.append(document.createElement("strong"), document.createElement("p"));
+  input.addEventListener("keydown", (event) => {
+    if (event.key !== "Enter") return;
+    event.preventDefault();
+    showExerciseRowResult(row, gradeExerciseLine(exercise, input.value, false), false);
+    const inputs = [...elements.exerciseRows.querySelectorAll("input")];
+    inputs[inputs.indexOf(input) + 1]?.focus();
+  });
+  boost.addEventListener("click", () => {
+    const exerciseProgress = toggleExerciseBoost(privateState.exerciseProgress, exercise.id);
+    if (!persistPrivateState({ exerciseProgress }, elements.exerciseSaveError)) return;
+    const enabled = exerciseProgress.boostedIds.includes(exercise.id);
+    boost.setAttribute("aria-pressed", String(enabled));
+    boost.setAttribute("aria-label", `${enabled ? "Отключить" : "Включить"} Boost: ${exercise.prompt}`);
+    boost.textContent = enabled ? "★" : "☆";
+    updateExerciseStats();
+  });
+  row.append(heading, input, status, correction);
+  return row;
 }
 
-function renderExercise() {
-  const exercise = currentExercise();
-  const index = LESSON_ONE_EXERCISES.findIndex((item) => item.id === exercise.id);
-  elements.exerciseCounter.textContent = `${String(index + 1).padStart(2, "0")} / ${String(LESSON_ONE_EXERCISES.length).padStart(2, "0")}`;
-  elements.exerciseTopic.textContent = exercise.topic;
-  elements.exerciseInstruction.textContent = exercise.instruction;
-  elements.exercisePrompt.textContent = exercise.prompt;
-  elements.exerciseAnswer.value = "";
-  elements.exerciseAnswer.disabled = false;
-  elements.exerciseSubmit.hidden = false;
-  elements.exerciseSubmit.textContent = "Проверить";
-  elements.exerciseFeedback.hidden = true;
-  elements.exerciseFeedback.classList.remove("is-wrong");
-  elements.exerciseNext.hidden = true;
+function renderExerciseBlock() {
+  const block = currentExerciseBlock();
+  const blockIndex = LESSON_ONE_BLOCKS.findIndex((item) => item.id === block.id);
+  const visibleIds = exerciseVisibleIds ?? block.exerciseIds;
+  elements.exerciseCounter.textContent = `${String(blockIndex + 1).padStart(2, "0")} / ${String(LESSON_ONE_BLOCKS.length).padStart(2, "0")}`;
+  elements.exerciseBlockTitle.textContent = exerciseVisibleIds ? "Исправляем ошибки" : block.title;
+  elements.exerciseInstruction.textContent = exerciseVisibleIds ? "Оставлены только строки, которые нужно исправить" : block.instruction;
+  elements.exerciseRows.replaceChildren();
+  visibleIds.forEach((id, index) => elements.exerciseRows.append(createExerciseRow(exerciseMap.get(id), index + 1)));
+  elements.exerciseCheckAll.hidden = false;
+  elements.exerciseRetryWrong.hidden = true;
+  elements.exerciseNextBlock.hidden = true;
   elements.exerciseSaveError.hidden = true;
-  updateBoostButton(exercise);
   updateExerciseStats();
 }
 
-function saveExerciseProgress(exerciseProgress) {
-  const nextState = { ...privateState, exerciseProgress };
-  if (!savePrivateState(window.localStorage, nextState)) {
-    elements.exerciseSaveError.hidden = false;
-    return false;
+function checkExerciseBlock() {
+  const block = currentExerciseBlock();
+  const visibleIds = exerciseVisibleIds ?? block.exerciseIds;
+  const answers = {};
+  for (const row of elements.exerciseRows.querySelectorAll(".exercise-row")) {
+    answers[row.dataset.exerciseId] = row.querySelector("input").value.trim();
   }
-  privateState = nextState;
-  elements.exerciseSaveError.hidden = true;
+  const result = gradeExerciseBlock({ ...block, exerciseIds: visibleIds }, exerciseMap, answers, true);
+  let exerciseProgress = privateState.exerciseProgress;
+  for (const rowResult of result.rows) {
+    exerciseProgress = recordExerciseAttempt(exerciseProgress, rowResult.id, answers[rowResult.id], rowResult.isCorrect);
+    const row = elements.exerciseRows.querySelector(`[data-exercise-id="${rowResult.id}"]`);
+    showExerciseRowResult(row, rowResult, true);
+    if (rowResult.isCorrect) row.querySelector("input").disabled = true;
+  }
+  if (!persistPrivateState({ exerciseProgress }, elements.exerciseSaveError)) return;
   updateExerciseStats();
-  return true;
+  elements.exerciseCheckAll.hidden = true;
+  elements.exerciseRetryWrong.hidden = result.isComplete;
+  elements.exerciseNextBlock.hidden = !result.isComplete;
 }
 
-function setMode(mode) {
-  const showExercises = mode === "exercises";
-  elements.practiceMode.setAttribute("aria-selected", String(!showExercises));
-  elements.exerciseMode.setAttribute("aria-selected", String(showExercises));
-  elements.practicePanel.hidden = showExercises;
-  elements.practiceActions.hidden = showExercises;
-  elements.exercisePanel.hidden = !showExercises;
-  if (showExercises) {
-    renderExercise();
-    elements.exerciseAnswer.focus();
+function currentPronunciationItem() {
+  return PRONUNCIATION_ITEMS.find((item) => item.id === currentPronunciationId);
+}
+
+function updatePronunciationStats() {
+  const progress = privateState.pronunciationProgress;
+  elements.pronunciationKnownCount.textContent = String(Object.values(progress.ratings).filter((rating) => rating.rating === "known").length);
+  elements.pronunciationDueCount.textContent = String(Object.values(progress.ratings).filter((rating) => rating.rating === "repeat" || rating.dueAt <= Date.now()).length);
+  elements.pronunciationBoostCount.textContent = String(progress.boostedIds.length);
+}
+
+function renderPronunciation() {
+  const item = currentPronunciationItem();
+  const module = pronunciationModuleMap.get(item.moduleId);
+  const index = PRONUNCIATION_ITEMS.findIndex((candidate) => candidate.id === item.id);
+  const isBoosted = privateState.pronunciationProgress.boostedIds.includes(item.id);
+  elements.pronunciationCounter.textContent = `${String(index + 1).padStart(2, "0")} / ${String(PRONUNCIATION_ITEMS.length).padStart(2, "0")}`;
+  elements.pronunciationModule.textContent = module.title;
+  elements.pronunciationPattern.textContent = item.pattern;
+  elements.pronunciationExplanation.textContent = item.explanation;
+  elements.pronunciationModelWord.textContent = item.modelWord;
+  elements.pronunciationPracticeWords.replaceChildren();
+  item.practiceWords.forEach((word) => {
+    const entry = document.createElement("li");
+    entry.textContent = word;
+    elements.pronunciationPracticeWords.append(entry);
+  });
+  elements.pronunciationBilan.textContent = module.bilan.text;
+  elements.pronunciationBoost.setAttribute("aria-pressed", String(isBoosted));
+  elements.pronunciationBoost.textContent = isBoosted ? "★ Boost включён" : "☆ Boost";
+  elements.pronunciationSaveError.hidden = true;
+  updatePronunciationStats();
+}
+
+function setMode(mode, { focus = false, persist = true } = {}) {
+  const selected = modes.find((item) => item.id === mode) ?? modes[0];
+  modes.forEach((item) => {
+    const isSelected = item.id === selected.id;
+    item.tab.setAttribute("aria-selected", String(isSelected));
+    item.tab.tabIndex = isSelected ? 0 : -1;
+    item.panel.hidden = !isSelected;
+  });
+  elements.practiceActions.hidden = selected.id !== "cards";
+  if (selected.id === "pronunciation") renderPronunciation();
+  if (selected.id === "exercises") renderExerciseBlock();
+  if (persist) {
+    const error = selected.id === "pronunciation" ? elements.pronunciationSaveError : selected.id === "exercises" ? elements.exerciseSaveError : elements.practiceSaveError;
+    persistPrivateState({ preferences: { ...privateState.preferences, activeMode: selected.id } }, error);
   }
+  if (focus) selected.tab.focus();
 }
 
 function moveToNextCard() {
@@ -185,7 +322,7 @@ function moveToNextCard() {
   }
   currentIndex = nextIndex;
   session = createSession(cards[currentIndex]);
-  render();
+  renderCard();
 }
 
 async function speakWithBackend(text) {
@@ -225,83 +362,60 @@ async function speakFrench(text) {
 
 elements.revealButton.addEventListener("click", () => {
   session = revealCard(session);
-  render();
+  renderCard();
 });
-
-elements.practiceMode.addEventListener("click", () => setMode("practice"));
-elements.exerciseMode.addEventListener("click", () => setMode("exercises"));
-
-elements.exerciseForm.addEventListener("submit", (event) => {
+modes.forEach((mode) => mode.tab.addEventListener("click", () => setMode(mode.id)));
+document.querySelector(".mode-switch").addEventListener("keydown", (event) => {
+  if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
   event.preventDefault();
-  const exercise = currentExercise();
-  const answer = elements.exerciseAnswer.value.trim();
-  if (!answer) return;
-
-  const result = checkExerciseAnswer(exercise, answer);
-  const progress = recordExerciseAttempt(
-    privateState.exerciseProgress,
-    exercise.id,
-    answer,
-    result.isCorrect,
-  );
-  if (!saveExerciseProgress(progress)) return;
-
-  elements.exerciseFeedback.hidden = false;
-  elements.exerciseFeedback.classList.toggle("is-wrong", !result.isCorrect);
-  elements.exerciseFeedbackStatus.textContent = result.isCorrect
-    ? "Верно — très bien !"
-    : "Пока нет. Исправьте ответ и проверьте ещё раз.";
-  elements.exerciseCanonical.textContent = result.canonicalAnswer;
-  elements.exerciseExplanation.textContent = result.explanation;
-
-  if (result.isCorrect) {
-    elements.exerciseAnswer.disabled = true;
-    elements.exerciseSubmit.hidden = true;
-    elements.exerciseNext.hidden = false;
-  } else {
-    elements.exerciseSubmit.textContent = "Проверить снова";
-    elements.exerciseAnswer.focus();
-    elements.exerciseAnswer.select();
-  }
+  const current = modes.findIndex((mode) => mode.tab === document.activeElement);
+  let next = current;
+  if (event.key === "ArrowLeft") next = (current - 1 + modes.length) % modes.length;
+  if (event.key === "ArrowRight") next = (current + 1) % modes.length;
+  if (event.key === "Home") next = 0;
+  if (event.key === "End") next = modes.length - 1;
+  setMode(modes[next].id, { focus: true });
 });
 
-elements.exerciseBoost.addEventListener("click", () => {
-  const exercise = currentExercise();
-  const progress = toggleExerciseBoost(privateState.exerciseProgress, exercise.id);
-  if (!saveExerciseProgress(progress)) return;
-  updateBoostButton(exercise);
+elements.exerciseCheckAll.addEventListener("click", checkExerciseBlock);
+elements.exerciseRetryWrong.addEventListener("click", () => {
+  const block = currentExerciseBlock();
+  exerciseVisibleIds = block.exerciseIds.filter((id) => privateState.exerciseProgress.retryQueue.includes(id));
+  renderExerciseBlock();
+  elements.exerciseRows.querySelector("input")?.focus();
+});
+elements.exerciseNextBlock.addEventListener("click", () => {
+  currentExerciseBlockId = selectNextExerciseBlockId(LESSON_ONE_BLOCKS, privateState.exerciseProgress, currentExerciseBlockId);
+  exerciseVisibleIds = null;
+  renderExerciseBlock();
+  elements.exerciseRows.querySelector("input")?.focus();
 });
 
-elements.exerciseNext.addEventListener("click", () => {
-  currentExerciseId = selectNextExerciseId(
-    LESSON_ONE_EXERCISES,
-    privateState.exerciseProgress,
-    currentExerciseId,
-  );
-  renderExercise();
-  elements.exerciseAnswer.focus();
+elements.pronunciationListen.addEventListener("click", () => speakFrench(currentPronunciationItem().audioText));
+elements.pronunciationListenBilan.addEventListener("click", () => speakFrench(pronunciationModuleMap.get(currentPronunciationItem().moduleId).bilan.audioText));
+elements.pronunciationBoost.addEventListener("click", () => {
+  const pronunciationProgress = togglePronunciationBoost(privateState.pronunciationProgress, currentPronunciationId);
+  if (!persistPrivateState({ pronunciationProgress }, elements.pronunciationSaveError)) return;
+  renderPronunciation();
 });
 
+function rateCurrentPronunciation(rating) {
+  const pronunciationProgress = ratePronunciation(privateState.pronunciationProgress, currentPronunciationId, rating);
+  if (!persistPrivateState({ pronunciationProgress }, elements.pronunciationSaveError)) return;
+  currentPronunciationId = selectNextPronunciationItemId(PRONUNCIATION_ITEMS, privateState.pronunciationProgress, currentPronunciationId);
+  renderPronunciation();
+}
+
+elements.pronunciationRepeat.addEventListener("click", () => rateCurrentPronunciation("repeat"));
+elements.pronunciationKnown.addEventListener("click", () => rateCurrentPronunciation("known"));
 elements.speakButton.addEventListener("click", () => {
   if (session.canSpeak) speakFrench(session.card.answer);
 });
-
 elements.ratingButtons.addEventListener("click", (event) => {
   const button = event.target.closest("button[data-rating]");
   if (!button || !session.canRate) return;
-  const nextState = {
-    ...privateState,
-    progress: {
-      ...privateState.progress,
-      [session.card.id]: rateCard(privateState.progress[session.card.id], button.dataset.rating),
-    },
-  };
-  if (!savePrivateState(window.localStorage, nextState)) {
-    elements.practiceSaveError.hidden = false;
-    return;
-  }
-  elements.practiceSaveError.hidden = true;
-  privateState = nextState;
+  const progress = { ...privateState.progress, [session.card.id]: rateCard(privateState.progress[session.card.id], button.dataset.rating) };
+  if (!persistPrivateState({ progress }, elements.practiceSaveError)) return;
   moveToNextCard();
 });
 
@@ -311,36 +425,24 @@ elements.closeAddCard.addEventListener("click", () => {
   elements.saveError.hidden = true;
   elements.addCardDialog.close();
 });
-
 elements.addCardForm.addEventListener("submit", (event) => {
   event.preventDefault();
   const prompt = elements.newPrompt.value.trim();
   const answer = elements.newAnswer.value.trim();
   if (!prompt || !answer) return;
-
   const id = `private-${globalThis.crypto?.randomUUID?.() ?? Date.now()}`;
   const newCard = { id, prompt, answer, deck: "Мои карточки" };
-  const nextState = { ...privateState, cards: [...privateState.cards, newCard] };
-  if (!savePrivateState(window.localStorage, nextState)) {
-    elements.saveError.hidden = false;
-    return;
-  }
-  privateState = nextState;
-  elements.saveError.hidden = true;
+  if (!persistPrivateState({ cards: [...privateState.cards, newCard] }, elements.saveError)) return;
   cards = [...publicCards, ...privateState.cards];
   currentIndex = cards.length - 1;
   session = createSession(newCard);
   elements.addCardForm.reset();
   elements.addCardDialog.close();
-  render();
+  renderCard();
 });
 
 elements.shareButton.addEventListener("click", async () => {
-  const shareData = {
-    title: "Французский Соловья",
-    text: "Карточки французского от Solavey RS",
-    url: window.location.href,
-  };
+  const shareData = { title: "Французский Соловья", text: "Карточки и уроки французского от Solavey RS", url: window.location.href };
   if (navigator.share) {
     try { await navigator.share(shareData); } catch (error) {
       if (error.name !== "AbortError") console.warn(error);
@@ -352,12 +454,8 @@ elements.shareButton.addEventListener("click", async () => {
   }
 });
 
-if ("serviceWorker" in navigator) {
-  window.addEventListener("load", () => navigator.serviceWorker.register("./sw.js"));
-}
+if ("serviceWorker" in navigator) window.addEventListener("load", () => navigator.serviceWorker.register("./sw.js"));
+window.speechSynthesis?.addEventListener?.("voiceschanged", () => chooseFrenchVoice(window.speechSynthesis.getVoices()));
 
-window.speechSynthesis?.addEventListener?.("voiceschanged", () => {
-  chooseFrenchVoice(window.speechSynthesis.getVoices());
-});
-
-render();
+renderCard();
+setMode(privateState.preferences.activeMode, { persist: false });
