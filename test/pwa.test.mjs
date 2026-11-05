@@ -49,10 +49,10 @@ test("Lesson 0 shell exposes model audio, Bilan, ratings, and Boost", async () =
 
 test("exercise modules are loaded without unsafe HTML rendering", async () => {
   const app = await read("src/app.js");
-  assert.match(app, /from "\.\/exercise-core\.js"/);
-  assert.match(app, /from "\.\/exercises\.js"/);
-  assert.match(app, /from "\.\/pronunciation-core\.js"/);
-  assert.match(app, /from "\.\/pronunciation\.js"/);
+  assert.match(app, /from "\.\/exercise-core\.js\?v=4"/);
+  assert.match(app, /from "\.\/exercises\.js\?v=4"/);
+  assert.match(app, /from "\.\/pronunciation-core\.js\?v=4"/);
+  assert.match(app, /from "\.\/pronunciation\.js\?v=4"/);
   assert.doesNotMatch(app, /\.innerHTML\s*=/);
 });
 
@@ -71,6 +71,15 @@ test("versioned shell assets bypass an older service-worker cache during upgrade
   assert.match(worker, /french-solovey-v4/);
   assert.match(worker, /"\.\/styles\.css\?v=4"/);
   assert.match(worker, /"\.\/src\/app\.js\?v=4"/);
+});
+
+test("every application module is versioned so an older worker cannot mix releases", async () => {
+  const app = await read("src/app.js");
+  const worker = await read("sw.js");
+  for (const modulePath of ["core.js", "exercise-core.js", "exercises.js", "pronunciation-core.js", "pronunciation.js"]) {
+    assert.match(app, new RegExp(`from "\\./${modulePath.replace(".", "\\.")}\\?v=4"`));
+    assert.match(worker, new RegExp(`"\\./src/${modulePath.replace(".", "\\.")}\\?v=4"`));
+  }
 });
 
 test("manifest is installable and branded", async () => {
