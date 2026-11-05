@@ -15,6 +15,23 @@ test("page carries the French Solovey brand and starts with answer controls hidd
   assert.match(html, /id="practice-save-error"[^>]*hidden/);
 });
 
+test("page exposes an accessible Exercices mode with answer, feedback, and Boost controls", async () => {
+  const html = await read("index.html");
+  assert.match(html, /id="practice-mode"[^>]*aria-selected="true"/);
+  assert.match(html, /id="exercise-mode"[^>]*aria-selected="false"/);
+  assert.match(html, /id="exercise-panel"[^>]*hidden/);
+  assert.match(html, /id="exercise-answer"[^>]*lang="fr"/);
+  assert.match(html, /id="exercise-feedback"[^>]*aria-live="polite"[^>]*hidden/);
+  assert.match(html, /id="exercise-boost"[^>]*type="button"/);
+});
+
+test("exercise modules are loaded without unsafe HTML rendering", async () => {
+  const app = await read("src/app.js");
+  assert.match(app, /from "\.\/exercise-core\.js"/);
+  assert.match(app, /from "\.\/exercises\.js"/);
+  assert.doesNotMatch(app, /\.innerHTML\s*=/);
+});
+
 test("all deployable asset references are relative for GitHub Pages subpaths", async () => {
   const html = await read("index.html");
   assert.doesNotMatch(html, /(?:src|href)="\/(?!\/)/);

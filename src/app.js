@@ -7,6 +7,13 @@ import {
   revealCard,
   savePrivateState,
 } from "./core.js";
+import {
+  checkExerciseAnswer,
+  recordExerciseAttempt,
+  selectNextExerciseId,
+  toggleExerciseBoost,
+} from "./exercise-core.js";
+import { LESSON_ONE_EXERCISES } from "./exercises.js";
 
 const publicCards = [
   { id: "public-bonjour", prompt: "Добрый день", answer: "Bonjour", deck: "Демо-урок" },
@@ -43,12 +50,39 @@ const elements = {
   closeAddCard: document.querySelector("#close-add-card"),
   saveError: document.querySelector("#save-error"),
   practiceSaveError: document.querySelector("#practice-save-error"),
+  practiceMode: document.querySelector("#practice-mode"),
+  exerciseMode: document.querySelector("#exercise-mode"),
+  practicePanel: document.querySelector("#practice-panel"),
+  exercisePanel: document.querySelector("#exercise-panel"),
+  practiceActions: document.querySelector("#practice-actions"),
+  exerciseCounter: document.querySelector("#exercise-counter"),
+  exerciseCorrectCount: document.querySelector("#exercise-correct-count"),
+  exerciseRetryCount: document.querySelector("#exercise-retry-count"),
+  exerciseBoostCount: document.querySelector("#exercise-boost-count"),
+  exerciseTopic: document.querySelector("#exercise-topic"),
+  exerciseBoost: document.querySelector("#exercise-boost"),
+  exerciseInstruction: document.querySelector("#exercise-instruction"),
+  exercisePrompt: document.querySelector("#exercise-prompt"),
+  exerciseForm: document.querySelector("#exercise-form"),
+  exerciseAnswer: document.querySelector("#exercise-answer"),
+  exerciseSubmit: document.querySelector("#exercise-submit"),
+  exerciseFeedback: document.querySelector("#exercise-feedback"),
+  exerciseFeedbackStatus: document.querySelector("#exercise-feedback-status"),
+  exerciseCanonical: document.querySelector("#exercise-canonical"),
+  exerciseExplanation: document.querySelector("#exercise-explanation"),
+  exerciseNext: document.querySelector("#exercise-next"),
+  exerciseSaveError: document.querySelector("#exercise-save-error"),
 };
 
 let privateState = loadPrivateState(window.localStorage);
 let cards = [...publicCards, ...privateState.cards];
 let currentIndex = 0;
 let session = createSession(cards[currentIndex]);
+let currentExerciseId = selectNextExerciseId(
+  LESSON_ONE_EXERCISES,
+  privateState.exerciseProgress,
+  null,
+);
 
 function isDue(card, now = Date.now()) {
   const dueAt = privateState.progress[card.id]?.dueAt;
@@ -72,6 +106,69 @@ function render() {
   elements.answerPanel.hidden = !session.isRevealed;
   elements.revealButton.hidden = session.isRevealed;
   updateStats();
+}
+
+function currentExercise() {
+  return LESSON_ONE_EXERCISES.find((exercise) => exercise.id === currentExerciseId);
+}
+
+function updateExerciseStats() {
+  const progress = privateState.exerciseProgress;
+  elements.exerciseCorrectCount.textContent = String(
+    Object.values(progress.attempts).filter((attempt) => attempt.correct).length,
+  );
+  elements.exerciseRetryCount.textContent = String(progress.retryQueue.length);
+  elements.exerciseBoostCount.textContent = String(progress.boostedIds.length);
+}
+
+function updateBoostButton(exercise) {
+  const isBoosted = privateState.exerciseProgress.boostedIds.includes(exercise.id);
+  elements.exerciseBoost.setAttribute("aria-pressed", String(isBoosted));
+  elements.exerciseBoost.textContent = isBoosted ? "★ Boost включён" : "☆ Boost";
+}
+
+function renderExercise() {
+  const exercise = currentExercise();
+  const index = LESSON_ONE_EXERCISES.findIndex((item) => item.id === exercise.id);
+  elements.exerciseCounter.textContent = `${String(index + 1).padStart(2, "0")} / ${String(LESSON_ONE_EXERCISES.length).padStart(2, "0")}`;
+  elements.exerciseTopic.textContent = exercise.topic;
+  elements.exerciseInstruction.textContent = exercise.instruction;
+  elements.exercisePrompt.textContent = exercise.prompt;
+  elements.exerciseAnswer.value = "";
+  elements.exerciseAnswer.disabled = false;
+  elements.exerciseSubmit.hidden = false;
+  elements.exerciseSubmit.textContent = "Проверить";
+  elements.exerciseFeedback.hidden = true;
+  elements.exerciseFeedback.classList.remove("is-wrong");
+  elements.exerciseNext.hidden = true;
+  elements.exerciseSaveError.hidden = true;
+  updateBoostButton(exercise);
+  updateExerciseStats();
+}
+
+function saveExerciseProgress(exerciseProgress) {
+  const nextState = { ...privateState, exerciseProgress };
+  if (!savePrivateState(window.localStorage, nextState)) {
+    elements.exerciseSaveError.hidden = false;
+    return false;
+  }
+  privateState = nextState;
+  elements.exerciseSaveError.hidden = true;
+  updateExerciseStats();
+  return true;
+}
+
+function setMode(mode) {
+  const showExercises = mode === "exercises";
+  elements.practiceMode.setAttribute("aria-selected", String(!showExercises));
+  elements.exerciseMode.setAttribute("aria-selected", String(showExercises));
+  elements.practicePanel.hidden = showExercises;
+  elements.practiceActions.hidden = showExercises;
+  elements.exercisePanel.hidden = !showExercises;
+  if (showExercises) {
+    renderExercise();
+    elements.exerciseAnswer.focus();
+  }
 }
 
 function moveToNextCard() {
@@ -129,6 +226,60 @@ async function speakFrench(text) {
 elements.revealButton.addEventListener("click", () => {
   session = revealCard(session);
   render();
+});
+
+elements.practiceMode.addEventListener("click", () => setMode("practice"));
+elements.exerciseMode.addEventListener("click", () => setMode("exercises"));
+
+elements.exerciseForm.addEventListener("submit", (event) => {
+  event.preventDefault();
+  const exercise = currentExercise();
+  const answer = elements.exerciseAnswer.value.trim();
+  if (!answer) return;
+
+  const result = checkExerciseAnswer(exercise, answer);
+  const progress = recordExerciseAttempt(
+    privateState.exerciseProgress,
+    exercise.id,
+    answer,
+    result.isCorrect,
+  );
+  if (!saveExerciseProgress(progress)) return;
+
+  elements.exerciseFeedback.hidden = false;
+  elements.exerciseFeedback.classList.toggle("is-wrong", !result.isCorrect);
+  elements.exerciseFeedbackStatus.textContent = result.isCorrect
+    ? "Верно — très bien !"
+    : "Пока нет. Исправьте ответ и проверьте ещё раз.";
+  elements.exerciseCanonical.textContent = result.canonicalAnswer;
+  elements.exerciseExplanation.textContent = result.explanation;
+
+  if (result.isCorrect) {
+    elements.exerciseAnswer.disabled = true;
+    elements.exerciseSubmit.hidden = true;
+    elements.exerciseNext.hidden = false;
+  } else {
+    elements.exerciseSubmit.textContent = "Проверить снова";
+    elements.exerciseAnswer.focus();
+    elements.exerciseAnswer.select();
+  }
+});
+
+elements.exerciseBoost.addEventListener("click", () => {
+  const exercise = currentExercise();
+  const progress = toggleExerciseBoost(privateState.exerciseProgress, exercise.id);
+  if (!saveExerciseProgress(progress)) return;
+  updateBoostButton(exercise);
+});
+
+elements.exerciseNext.addEventListener("click", () => {
+  currentExerciseId = selectNextExerciseId(
+    LESSON_ONE_EXERCISES,
+    privateState.exerciseProgress,
+    currentExerciseId,
+  );
+  renderExercise();
+  elements.exerciseAnswer.focus();
 });
 
 elements.speakButton.addEventListener("click", () => {

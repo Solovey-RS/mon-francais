@@ -74,7 +74,7 @@ export function selectNextExerciseId(exercises, progress, currentId = null) {
 
   const currentIndex = exercises.findIndex((exercise) => exercise.id === currentId);
   for (let offset = 1; offset <= exercises.length; offset += 1) {
-    const index = (Math.max(currentIndex, 0) + offset) % exercises.length;
+    const index = (currentIndex + offset + exercises.length) % exercises.length;
     if (!avoidCurrent || exercises[index].id !== currentId) return exercises[index].id;
   }
   return exercises[0].id;

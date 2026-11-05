@@ -72,6 +72,7 @@ test("selection prioritizes Boost, then retry, then lesson order without immedia
 
   const retryOnly = { ...progress, boostedIds: [] };
   assert.equal(selectNextExerciseId(exercises, retryOnly, "a"), "c");
+  assert.equal(selectNextExerciseId(exercises, createEmptyExerciseProgress(), null), "a");
   assert.equal(selectNextExerciseId(exercises, createEmptyExerciseProgress(), "a"), "b");
 });
 
