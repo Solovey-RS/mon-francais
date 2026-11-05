@@ -144,3 +144,24 @@ export const LESSON_ONE_EXERCISES = [
     explanation: "С местоимением ils глагол être принимает форму sont, а не est или sommes.",
   },
 ];
+
+export const LESSON_ONE_BLOCKS = [
+  {
+    id: "introductions",
+    title: "Знакомимся",
+    instruction: "Переведите предложения на французский",
+    exerciseIds: ["appel-je", "appel-tu", "appel-question", "appel-il", "etre-je"],
+  },
+  {
+    id: "pronouns-and-etre",
+    title: "Местоимения и être",
+    instruction: "Подберите местоимения и формы глагола être",
+    exerciseIds: ["pronoun-nous", "pronoun-elles", "pronoun-vous", "etre-nous", "etre-vous", "etre-ils"],
+  },
+  {
+    id: "describing-people",
+    title: "Описываем людей",
+    instruction: "Согласуйте формы и прилагательные",
+    exerciseIds: ["etre-elle", "adj-gentille", "adj-francaise", "adj-plural", "adj-assemble"],
+  },
+];
