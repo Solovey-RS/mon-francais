@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#173f35" />
+    <meta name="description" content="Карточки французского от Solavey RS — учить, повторять, говорить." />
+    <title>Французский Соловья</title>
+    <link rel="manifest" href="./manifest.webmanifest" />
+    <link rel="icon" href="./icons/icon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png" />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="page-shell">
+      <header class="brand-header">
+        <a class="brand" href="./" aria-label="Французский Соловья — главная">
+          <span class="brand-mark" aria-hidden="true">S</span>
+          <span>
+            <strong>Французский Соловья</strong>
+            <small>LE FRANÇAIS DE SOLOVEY · SOLAVEY RS</small>
+          </span>
+        </a>
+        <button class="icon-button" id="share-button" type="button" aria-label="Поделиться приложением">↗</button>
+      </header>
+
+      <main>
+        <section class="intro" aria-labelledby="page-title">
+          <p class="eyebrow">APPRENDRE · RÉPÉTER · PARLER</p>
+          <h1 id="page-title">Сегодня — немного ближе к французскому</h1>
+          <div class="stats" aria-label="Статистика занятий">
+            <span><strong id="card-count">0</strong> карточек</span>
+            <span><strong id="known-count">0</strong> знаю</span>
+            <span><strong id="due-count">0</strong> к повторению</span>
+          </div>
+        </section>
+
+        <section class="practice" aria-labelledby="practice-title">
+          <div class="section-heading">
+            <div>
+              <p class="eyebrow" id="deck-label">ДЕМО-УРОК</p>
+              <h2 id="practice-title">Переведи на французский</h2>
+            </div>
+            <span class="counter" id="card-counter">01 / 06</span>
+          </div>
+
+          <article class="flashcard" aria-live="polite">
+            <p class="prompt-label">По-русски</p>
+            <p class="prompt" id="card-prompt">Загрузка…</p>
+
+            <button class="primary-button" id="reveal-button" type="button">Показать ответ</button>
+
+            <div class="answer-panel" id="answer-panel" hidden>
+              <div class="answer-rule"></div>
+              <p class="prompt-label">По-французски</p>
+              <p class="answer" id="card-answer"></p>
+              <button class="speak-button" id="speak-button" type="button">
+                <span aria-hidden="true">◖))</span> Слушать произношение
+              </button>
+              <p class="rating-label">Как получилось?</p>
+              <div class="rating-buttons" id="rating-buttons">
+                <button data-rating="again" type="button">Снова</button>
+                <button data-rating="hard" type="button">Трудно</button>
+                <button data-rating="known" type="button">Знаю</button>
+              </div>
+            </div>
+          </article>
+          <p class="form-error" id="practice-save-error" role="alert" hidden>Не удалось сохранить результат. Проверьте, что Safari разрешает локальное хранилище для этого сайта.</p>
+        </section>
+
+        <section class="actions" aria-label="Управление уроками">
+          <button class="secondary-button" id="add-card-button" type="button">＋ Добавить свою карточку</button>
+          <button class="text-button" id="install-button" type="button">Как установить на iPhone</button>
+        </section>
+
+        <section class="privacy-note">
+          <strong>Личное остаётся на вашем устройстве.</strong>
+          <p>Ссылка открывает только приложение и демо-набор. Ваши карточки и прогресс не публикуются и не передаются другим людям.</p>
+        </section>
+      </main>
+
+      <footer>SOLOVEY RS · PARIS · 2026</footer>
+    </div>
+
+    <dialog id="add-card-dialog">
+      <form method="dialog" id="add-card-form">
+        <div class="dialog-heading">
+          <div>
+            <p class="eyebrow">ЛИЧНАЯ КАРТОЧКА</p>
+            <h2>Добавить фразу</h2>
+          </div>
+          <button class="icon-button" id="close-add-card" type="button" aria-label="Закрыть">×</button>
+        </div>
+        <label>По-русски<input id="new-prompt" name="prompt" required maxlength="180" autocomplete="off" /></label>
+        <label>По-французски<input id="new-answer" name="answer" required maxlength="180" lang="fr" autocomplete="off" /></label>
+        <p class="form-note">Карточка сохранится только в Safari на этом устройстве.</p>
+        <p class="form-error" id="save-error" role="alert" hidden>Safari не разрешил сохранить карточку. Проверьте, что для сайта доступно локальное хранилище.</p>
+        <button class="primary-button" value="default" type="submit">Сохранить карточку</button>
+      </form>
+    </dialog>
+
+    <dialog id="install-dialog">
+      <form method="dialog">
+        <div class="dialog-heading">
+          <div>
+            <p class="eyebrow">УСТАНОВКА PWA</p>
+            <h2>На экран iPhone</h2>
+          </div>
+          <button class="icon-button" value="close" aria-label="Закрыть">×</button>
+        </div>
+        <ol>
+          <li>Откройте эту ссылку в Safari.</li>
+          <li>Нажмите кнопку «Поделиться».</li>
+          <li>Выберите «На экран Домой», затем «Добавить».</li>
+        </ol>
+        <p class="form-note">Для произношения используется бесплатный французский голос iPhone. Качество и тембр зависят от голосов, установленных в iOS.</p>
+      </form>
+    </dialog>
+
+    <script type="module" src="./src/app.js"></script>
+  </body>
+</html>
