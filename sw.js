@@ -1,4 +1,4 @@
-const CACHE_NAME = "french-solovey-v1";
+const CACHE_NAME = "french-solovey-v2";
 const APP_SHELL = [
   "./",
   "./index.html",
@@ -6,6 +6,8 @@ const APP_SHELL = [
   "./manifest.webmanifest",
   "./src/app.js",
   "./src/core.js",
+  "./src/exercise-core.js",
+  "./src/exercises.js",
   "./icons/icon.svg",
   "./icons/icon-192.png",
   "./icons/icon-512.png",

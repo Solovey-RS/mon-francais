@@ -51,9 +51,20 @@ test("manifest is installable and branded", async () => {
 
 test("service worker caches only the public application shell", async () => {
   const worker = await read("sw.js");
+  assert.match(worker, /french-solovey-v2/);
   assert.match(worker, /\.\/index\.html/);
   assert.match(worker, /\.\/src\/app\.js/);
+  assert.match(worker, /\.\/src\/exercise-core\.js/);
+  assert.match(worker, /\.\/src\/exercises\.js/);
   assert.doesNotMatch(worker, /localStorage|private\.v1|Campus|Ruslan/i);
+});
+
+test("README documents Exercices, retry, Boost, and local persistence", async () => {
+  const readme = await read("README.md");
+  assert.match(readme, /Exercices & Boost/);
+  assert.match(readme, /incorrect answers.*return/is);
+  assert.match(readme, /Boost.*until.*turn.*off/is);
+  assert.match(readme, /localStorage/);
 });
 
 test("public source contains no private lesson identifiers or API keys", async () => {
