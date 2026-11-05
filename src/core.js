@@ -1,5 +1,7 @@
 export const PRIVATE_STORAGE_KEY = "french-solovey.private.v1";
 
+import { createEmptyExerciseProgress } from "./exercise-core.js";
+
 const MINUTE = 60_000;
 const DAY = 24 * 60 * MINUTE;
 
@@ -67,7 +69,7 @@ export function nextDueIndex(cards, progress, currentIndex, now = Date.now()) {
 }
 
 function emptyPrivateState() {
-  return { cards: [], progress: {} };
+  return { cards: [], progress: {}, exerciseProgress: createEmptyExerciseProgress() };
 }
 
 function isValidCard(card) {
@@ -91,6 +93,30 @@ function isValidProgressEntry(entry) {
   );
 }
 
+function sanitizeExerciseProgress(value) {
+  const empty = createEmptyExerciseProgress();
+  if (!value || typeof value !== "object") return empty;
+  if (!value.attempts || typeof value.attempts !== "object" || Array.isArray(value.attempts)) return empty;
+  if (!Array.isArray(value.retryQueue) || !Array.isArray(value.boostedIds)) return empty;
+
+  const attempts = Object.fromEntries(
+    Object.entries(value.attempts).filter(([id, attempt]) =>
+      typeof id === "string" &&
+      attempt && typeof attempt === "object" &&
+      Number.isInteger(attempt.count) && attempt.count >= 1 &&
+      typeof attempt.correct === "boolean" &&
+      typeof attempt.lastAnswer === "string" &&
+      Number.isFinite(attempt.lastAttemptAt),
+    ),
+  );
+  const validIds = (items) => [...new Set(items.filter((id) => typeof id === "string" && id.trim()))];
+  return {
+    attempts,
+    retryQueue: validIds(value.retryQueue),
+    boostedIds: validIds(value.boostedIds),
+  };
+}
+
 export function loadPrivateState(storage) {
   try {
     const raw = storage.getItem(PRIVATE_STORAGE_KEY);
@@ -103,7 +129,8 @@ export function loadPrivateState(storage) {
     const progress = Object.fromEntries(
       Object.entries(value.progress).filter(([, entry]) => isValidProgressEntry(entry)),
     );
-    return { cards, progress };
+    const exerciseProgress = sanitizeExerciseProgress(value.exerciseProgress);
+    return { cards, progress, exerciseProgress };
   } catch {
     return emptyPrivateState();
   }
@@ -113,7 +140,11 @@ export function savePrivateState(storage, state) {
   try {
     storage.setItem(
       PRIVATE_STORAGE_KEY,
-      JSON.stringify({ cards: state.cards, progress: state.progress }),
+      JSON.stringify({
+        cards: state.cards,
+        progress: state.progress,
+        exerciseProgress: state.exerciseProgress ?? createEmptyExerciseProgress(),
+      }),
     );
     return true;
   } catch {
