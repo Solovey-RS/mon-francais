@@ -1,10 +1,10 @@
-const CACHE_NAME = "french-solovey-v3";
+const CACHE_NAME = "french-solovey-v4";
 const APP_SHELL = [
   "./",
   "./index.html",
-  "./styles.css",
+  "./styles.css?v=4",
   "./manifest.webmanifest",
-  "./src/app.js",
+  "./src/app.js?v=4",
   "./src/core.js",
   "./src/exercise-core.js",
   "./src/exercises.js",
