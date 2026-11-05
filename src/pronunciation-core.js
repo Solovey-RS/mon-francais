@@ -38,16 +38,18 @@ function oldestRatingFirst(progress) {
     (progress.ratings[right]?.lastRatedAt ?? 0);
 }
 
-export function selectNextPronunciationItemId(items, progress, currentId = null, now = Date.now()) {
+export function selectNextPronunciationItemId(items, progress, currentId = null, now = Date.now(), visitedIds = new Set()) {
   if (!items.length) return null;
-  const validIds = new Set(items.map((item) => item.id));
-  const avoidCurrent = items.length > 1;
+  const unvisited = items.filter((item) => !visitedIds.has(item.id));
+  const candidates = unvisited.length ? unvisited : items;
+  const validIds = new Set(candidates.map((item) => item.id));
+  const avoidCurrent = candidates.length > 1;
   const eligible = (id) => validIds.has(id) && (!avoidCurrent || id !== currentId);
 
   const boosted = progress.boostedIds.filter(eligible).sort(oldestRatingFirst(progress));
   if (boosted.length) return boosted[0];
 
-  const due = items.find((item) => {
+  const due = candidates.find((item) => {
     if (!eligible(item.id)) return false;
     const dueAt = progress.ratings[item.id]?.dueAt;
     return Number.isFinite(dueAt) && dueAt <= now;

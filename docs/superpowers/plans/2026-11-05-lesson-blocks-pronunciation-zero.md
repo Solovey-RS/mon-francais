@@ -327,4 +327,3 @@ On the published URL verify:
 - [ ] **Step 10: Report the exact live URL, PR, evidence, and limits**
 
 State that physical-iPhone voice quality and installation still require Ruslan's device check.
-

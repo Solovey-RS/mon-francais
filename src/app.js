@@ -8,10 +8,12 @@ import {
   savePrivateState,
 } from "./core.js";
 import {
+  describeExerciseRow,
   gradeExerciseBlock,
   gradeExerciseLine,
   recordExerciseAttempt,
   selectNextExerciseBlockId,
+  shouldInitializeExerciseView,
   toggleExerciseBoost,
 } from "./exercise-core.js";
 import { LESSON_ONE_BLOCKS, LESSON_ONE_EXERCISES } from "./exercises.js";
@@ -108,6 +110,8 @@ let session = createSession(cards[currentIndex]);
 let currentExerciseBlockId = selectNextExerciseBlockId(LESSON_ONE_BLOCKS, privateState.exerciseProgress, null);
 let exerciseVisibleIds = null;
 let currentPronunciationId = selectNextPronunciationItemId(PRONUNCIATION_ITEMS, privateState.pronunciationProgress, null);
+let visitedExerciseBlockIds = new Set([currentExerciseBlockId]);
+let visitedPronunciationIds = new Set([currentPronunciationId]);
 
 function persistPrivateState(patch, errorElement) {
   const nextState = { ...privateState, ...patch };
@@ -172,10 +176,17 @@ function createExerciseRow(exercise, position) {
   row.dataset.exerciseId = exercise.id;
   const heading = document.createElement("div");
   heading.className = "exercise-row-heading";
+  const copy = describeExerciseRow(exercise, position);
+  const copyPanel = document.createElement("div");
+  copyPanel.className = "exercise-row-copy";
   const prompt = document.createElement("label");
   const inputId = `exercise-answer-${exercise.id}`;
   prompt.htmlFor = inputId;
-  prompt.textContent = `${position}. ${exercise.prompt}`;
+  prompt.textContent = copy.label;
+  const instruction = document.createElement("span");
+  instruction.className = "exercise-row-instruction";
+  instruction.textContent = copy.instruction;
+  copyPanel.append(prompt, instruction);
   const boost = document.createElement("button");
   boost.type = "button";
   boost.className = "boost-button row-boost";
@@ -183,7 +194,7 @@ function createExerciseRow(exercise, position) {
   boost.setAttribute("aria-pressed", String(isBoosted));
   boost.setAttribute("aria-label", `${isBoosted ? "Отключить" : "Включить"} Boost: ${exercise.prompt}`);
   boost.textContent = isBoosted ? "★" : "☆";
-  heading.append(prompt, boost);
+  heading.append(copyPanel, boost);
   const input = document.createElement("input");
   input.id = inputId;
   input.lang = "fr";
@@ -300,7 +311,7 @@ function setMode(mode, { focus = false, persist = true } = {}) {
   });
   elements.practiceActions.hidden = selected.id !== "cards";
   if (selected.id === "pronunciation") renderPronunciation();
-  if (selected.id === "exercises") renderExerciseBlock();
+  if (selected.id === "exercises" && shouldInitializeExerciseView(elements.exerciseRows.childElementCount)) renderExerciseBlock();
   if (persist) {
     const error = selected.id === "pronunciation" ? elements.pronunciationSaveError : selected.id === "exercises" ? elements.exerciseSaveError : elements.practiceSaveError;
     persistPrivateState({ preferences: { ...privateState.preferences, activeMode: selected.id } }, error);
@@ -385,7 +396,14 @@ elements.exerciseRetryWrong.addEventListener("click", () => {
   elements.exerciseRows.querySelector("input")?.focus();
 });
 elements.exerciseNextBlock.addEventListener("click", () => {
-  currentExerciseBlockId = selectNextExerciseBlockId(LESSON_ONE_BLOCKS, privateState.exerciseProgress, currentExerciseBlockId);
+  if (visitedExerciseBlockIds.size >= LESSON_ONE_BLOCKS.length) visitedExerciseBlockIds.clear();
+  currentExerciseBlockId = selectNextExerciseBlockId(
+    LESSON_ONE_BLOCKS,
+    privateState.exerciseProgress,
+    currentExerciseBlockId,
+    visitedExerciseBlockIds,
+  );
+  visitedExerciseBlockIds.add(currentExerciseBlockId);
   exerciseVisibleIds = null;
   renderExerciseBlock();
   elements.exerciseRows.querySelector("input")?.focus();
@@ -402,7 +420,15 @@ elements.pronunciationBoost.addEventListener("click", () => {
 function rateCurrentPronunciation(rating) {
   const pronunciationProgress = ratePronunciation(privateState.pronunciationProgress, currentPronunciationId, rating);
   if (!persistPrivateState({ pronunciationProgress }, elements.pronunciationSaveError)) return;
-  currentPronunciationId = selectNextPronunciationItemId(PRONUNCIATION_ITEMS, privateState.pronunciationProgress, currentPronunciationId);
+  if (visitedPronunciationIds.size >= PRONUNCIATION_ITEMS.length) visitedPronunciationIds.clear();
+  currentPronunciationId = selectNextPronunciationItemId(
+    PRONUNCIATION_ITEMS,
+    privateState.pronunciationProgress,
+    currentPronunciationId,
+    Date.now(),
+    visitedPronunciationIds,
+  );
+  visitedPronunciationIds.add(currentPronunciationId);
   renderPronunciation();
 }
 

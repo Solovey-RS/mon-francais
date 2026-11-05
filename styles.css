@@ -165,7 +165,9 @@ dialog ol { padding-left: 22px; line-height: 1.7; }
 .exercise-rows { display: grid; gap: 14px; margin-top: 20px; }
 .exercise-row { padding: 16px; border: 1px solid var(--line); border-radius: 18px; background: rgba(255, 255, 255, 0.55); }
 .exercise-row-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
-.exercise-row-heading label { padding-top: 7px; font-family: Georgia, serif; font-size: 1.06rem; line-height: 1.35; }
+.exercise-row-copy { display: grid; gap: 5px; padding-top: 7px; }
+.exercise-row-heading label { font-family: Georgia, serif; font-size: 1.06rem; line-height: 1.35; }
+.exercise-row-instruction { color: var(--muted); font-size: 0.76rem; line-height: 1.35; }
 .row-boost { min-width: 42px; padding: 0; font-size: 1.15rem; }
 .exercise-row input { width: 100%; min-height: 52px; margin-top: 12px; padding: 0 14px; border: 2px solid var(--line); border-radius: 14px; color: var(--ink); background: white; font-family: Georgia, serif; font-size: 1.1rem; }
 .exercise-row input:focus { outline: 3px solid rgba(211, 163, 74, 0.28); border-color: var(--gold); }

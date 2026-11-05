@@ -59,3 +59,23 @@ test("pronunciation selection prioritizes Boost, then due items, then lesson ord
   assert.equal(selectNextPronunciationItemId(items, createEmptyPronunciationProgress(), "a", 1_000), "b");
   assert.equal(selectNextPronunciationItemId([{ id: "only" }], createEmptyPronunciationProgress(), "only", 1_000), "only");
 });
+
+test("pronunciation selection visits every item once before repeating Boost priorities", () => {
+  const items = [{ id: "a" }, { id: "b" }, { id: "c" }, { id: "d" }];
+  const progress = { ratings: {}, boostedIds: ["a"] };
+  const visited = new Set(["a"]);
+  const sequence = [];
+  let current = "a";
+  while (visited.size < items.length) {
+    current = selectNextPronunciationItemId(items, progress, current, 1_000, visited);
+    visited.add(current);
+    sequence.push(current);
+  }
+  assert.deepEqual(sequence, ["b", "c", "d"]);
+});
+
+test("gu before e or i uses examples where u remains silent", () => {
+  const item = PRONUNCIATION_ITEMS.find((candidate) => candidate.id === "digraph-gu");
+  assert.ok(item.practiceWords.includes("guerre"));
+  assert.ok(!item.practiceWords.includes("virgule"));
+});

@@ -4,12 +4,14 @@ import assert from "node:assert/strict";
 import {
   checkExerciseAnswer,
   createEmptyExerciseProgress,
+  describeExerciseRow,
   gradeExerciseBlock,
   gradeExerciseLine,
   normalizeFrenchAnswer,
   recordExerciseAttempt,
   selectNextExerciseBlockId,
   selectNextExerciseId,
+  shouldInitializeExerciseView,
   toggleExerciseBoost,
 } from "../src/exercise-core.js";
 import { LESSON_ONE_BLOCKS, LESSON_ONE_EXERCISES } from "../src/exercises.js";
@@ -143,4 +145,31 @@ test("block selection prioritizes Boost, then retry, then order without trapping
   assert.equal(selectNextExerciseBlockId(blocks, progress, "b"), "c");
   assert.equal(selectNextExerciseBlockId(blocks, createEmptyExerciseProgress(), "a"), "b");
   assert.equal(selectNextExerciseBlockId([{ id: "only", exerciseIds: ["one"] }], progress, "only"), "only");
+});
+
+test("block selection visits every block once before repeating Boost priorities", () => {
+  const blocks = [
+    { id: "a", exerciseIds: ["one"] },
+    { id: "b", exerciseIds: ["two"] },
+    { id: "c", exerciseIds: ["three"] },
+  ];
+  const progress = { attempts: {}, retryQueue: [], boostedIds: ["one"] };
+  const visited = new Set(["a"]);
+  const second = selectNextExerciseBlockId(blocks, progress, "a", visited);
+  visited.add(second);
+  const third = selectNextExerciseBlockId(blocks, progress, second, visited);
+  assert.deepEqual([second, third], ["b", "c"]);
+});
+
+test("exercise row copy preserves its specific transformation instruction", () => {
+  const exercise = LESSON_ONE_EXERCISES.find((item) => item.id === "adj-francaise");
+  assert.deepEqual(describeExerciseRow(exercise, 3), {
+    label: "3. Il est français. → …",
+    instruction: "Поставьте фразу в женский род",
+  });
+});
+
+test("an existing exercise view is not rebuilt when returning to its tab", () => {
+  assert.equal(shouldInitializeExerciseView(0), true);
+  assert.equal(shouldInitializeExerciseView(5), false);
 });

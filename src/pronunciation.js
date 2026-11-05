@@ -86,7 +86,7 @@ export const PRONUNCIATION_ITEMS = [
 
   { id: "digraph-ch", moduleId: "digraphs", pattern: "ch", explanation: "В большинстве французских слов ch читается как мягкое «ш».", modelWord: "chat", audioText: "chat", practiceWords: ["chemin", "marché", "chocolat"] },
   { id: "digraph-qu", moduleId: "digraphs", pattern: "qu", explanation: "Сочетание qu обычно даёт звук [k]; буква u отдельно не звучит.", modelWord: "quatre", audioText: "quatre", practiceWords: ["qui", "équipe", "chaque"] },
-  { id: "digraph-gu", moduleId: "digraphs", pattern: "gu + e/i", explanation: "Буква u сохраняет твёрдый звук [g] перед e или i и сама обычно не произносится.", modelWord: "guitare", audioText: "guitare", practiceWords: ["guide", "fatigue", "virgule"] },
+  { id: "digraph-gu", moduleId: "digraphs", pattern: "gu + e/i", explanation: "Буква u сохраняет твёрдый звук [g] перед e или i и сама обычно не произносится.", modelWord: "guitare", audioText: "guitare", practiceWords: ["guide", "fatigue", "guerre"] },
 
   { id: "combo-ou", moduleId: "ou-oi", pattern: "ou", explanation: "Сочетание ou читается как чистый звук [u], близкий к русскому «у».", modelWord: "rouge", audioText: "rouge", practiceWords: ["vous", "toujours", "soupe"] },
   { id: "combo-oi", moduleId: "ou-oi", pattern: "oi", explanation: "Сочетание oi читается [wa], примерно как слитное «уа».", modelWord: "voiture", audioText: "voiture", practiceWords: ["moi", "trois", "soir"] },

@@ -51,6 +51,17 @@ export function gradeExerciseBlock(block, exerciseMap, answers, reveal = false) 
   };
 }
 
+export function describeExerciseRow(exercise, position) {
+  return {
+    label: `${position}. ${exercise.prompt}`,
+    instruction: exercise.instruction,
+  };
+}
+
+export function shouldInitializeExerciseView(rowCount) {
+  return rowCount === 0;
+}
+
 export function recordExerciseAttempt(progress, exerciseId, answer, isCorrect, now = Date.now()) {
   const previous = progress.attempts[exerciseId];
   const attempts = {
@@ -108,19 +119,20 @@ export function selectNextExerciseId(exercises, progress, currentId = null) {
   return exercises[0].id;
 }
 
-export function selectNextExerciseBlockId(blocks, progress, currentBlockId = null) {
+export function selectNextExerciseBlockId(blocks, progress, currentBlockId = null, visitedIds = new Set()) {
   if (!blocks.length) return null;
-  const avoidCurrent = blocks.length > 1;
-  const eligible = (block) => !avoidCurrent || block.id !== currentBlockId;
-  const candidates = blocks.filter(eligible);
+  const unvisited = blocks.filter((block) => !visitedIds.has(block.id));
+  const candidates = unvisited.length ? unvisited : blocks;
+  const avoidCurrent = candidates.length > 1;
+  const eligible = (block) => candidates.includes(block) && (!avoidCurrent || block.id !== currentBlockId);
 
   const boosted = candidates.find((block) =>
-    block.exerciseIds.some((id) => progress.boostedIds.includes(id)),
+    eligible(block) && block.exerciseIds.some((id) => progress.boostedIds.includes(id)),
   );
   if (boosted) return boosted.id;
 
   const retry = candidates.find((block) =>
-    block.exerciseIds.some((id) => progress.retryQueue.includes(id)),
+    eligible(block) && block.exerciseIds.some((id) => progress.retryQueue.includes(id)),
   );
   if (retry) return retry.id;
 
