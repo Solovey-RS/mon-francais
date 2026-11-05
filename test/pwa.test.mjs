@@ -60,7 +60,17 @@ test("all deployable asset references are relative for GitHub Pages subpaths", a
   const html = await read("index.html");
   assert.doesNotMatch(html, /(?:src|href)="\/(?!\/)/);
   assert.match(html, /href="\.\/manifest\.webmanifest"/);
-  assert.match(html, /src="\.\/src\/app\.js"/);
+  assert.match(html, /src="\.\/src\/app\.js\?v=4"/);
+});
+
+test("versioned shell assets bypass an older service-worker cache during upgrades", async () => {
+  const html = await read("index.html");
+  const worker = await read("sw.js");
+  assert.match(html, /href="\.\/styles\.css\?v=4"/);
+  assert.match(html, /src="\.\/src\/app\.js\?v=4"/);
+  assert.match(worker, /french-solovey-v4/);
+  assert.match(worker, /"\.\/styles\.css\?v=4"/);
+  assert.match(worker, /"\.\/src\/app\.js\?v=4"/);
 });
 
 test("manifest is installable and branded", async () => {
@@ -75,7 +85,7 @@ test("manifest is installable and branded", async () => {
 
 test("service worker caches only the public application shell", async () => {
   const worker = await read("sw.js");
-  assert.match(worker, /french-solovey-v3/);
+  assert.match(worker, /french-solovey-v4/);
   assert.match(worker, /\.\/index\.html/);
   assert.match(worker, /\.\/src\/app\.js/);
   assert.match(worker, /\.\/src\/exercise-core\.js/);
