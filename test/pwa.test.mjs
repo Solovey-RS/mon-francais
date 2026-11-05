@@ -75,18 +75,25 @@ test("manifest is installable and branded", async () => {
 
 test("service worker caches only the public application shell", async () => {
   const worker = await read("sw.js");
-  assert.match(worker, /french-solovey-v2/);
+  assert.match(worker, /french-solovey-v3/);
   assert.match(worker, /\.\/index\.html/);
   assert.match(worker, /\.\/src\/app\.js/);
   assert.match(worker, /\.\/src\/exercise-core\.js/);
   assert.match(worker, /\.\/src\/exercises\.js/);
+  assert.match(worker, /\.\/src\/pronunciation-core\.js/);
+  assert.match(worker, /\.\/src\/pronunciation\.js/);
   assert.doesNotMatch(worker, /localStorage|private\.v1|Campus|Ruslan/i);
 });
 
-test("README documents Exercices, retry, Boost, and local persistence", async () => {
+test("README documents both lessons, block checks, TTS limits, and local persistence", async () => {
   const readme = await read("README.md");
-  assert.match(readme, /Exercices & Boost/);
-  assert.match(readme, /incorrect answers.*return/is);
+  assert.match(readme, /Lesson 0|Урок 0/);
+  assert.match(readme, /Lesson 1|Урок 1/);
+  assert.match(readme, /Enter.*without.*answer/is);
+  assert.match(readme, /Check all|Проверить всё/i);
+  assert.match(readme, /device.*voice|голос.*устройств/is);
+  assert.match(readme, /isolated phoneme|изолированн.*фонем/is);
+  assert.match(readme, /incorrect.*retry|ошиб.*повтор/is);
   assert.match(readme, /Boost.*until.*turn.*off/is);
   assert.match(readme, /localStorage/);
 });
@@ -96,9 +103,12 @@ test("public source contains no private lesson identifiers or API keys", async (
     read("index.html"),
     read("src/app.js"),
     read("src/core.js"),
+    read("src/exercises.js"),
+    read("src/pronunciation.js"),
     read("sw.js"),
   ]);
   const source = files.join("\n");
   assert.doesNotMatch(source, /Campus A1|Je m'appelle Ruslan/i);
+  assert.doesNotMatch(source, /A0\.pdf|drive\.google\.com|source(?:File|Document)Id/i);
   assert.doesNotMatch(source, /sk-[A-Za-z0-9_-]{20,}/);
 });
