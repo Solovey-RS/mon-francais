@@ -1,11 +1,15 @@
 import { createEmptyExerciseProgress } from "./exercise-core.js";
 import { LESSON_ONE_EXERCISES } from "./exercises.js";
+import { createEmptyPronunciationProgress } from "./pronunciation-core.js";
+import { PRONUNCIATION_ITEMS } from "./pronunciation.js";
 
 export const PRIVATE_STORAGE_KEY = "french-solovey.private.v1";
 
 const MINUTE = 60_000;
 const DAY = 24 * 60 * MINUTE;
 const EXERCISE_IDS = new Set(LESSON_ONE_EXERCISES.map(({ id }) => id));
+const PRONUNCIATION_IDS = new Set(PRONUNCIATION_ITEMS.map(({ id }) => id));
+const ACTIVE_MODES = new Set(["cards", "pronunciation", "exercises"]);
 
 export function createSession(card) {
   return {
@@ -71,7 +75,13 @@ export function nextDueIndex(cards, progress, currentIndex, now = Date.now()) {
 }
 
 function emptyPrivateState() {
-  return { cards: [], progress: {}, exerciseProgress: createEmptyExerciseProgress() };
+  return {
+    cards: [],
+    progress: {},
+    exerciseProgress: createEmptyExerciseProgress(),
+    pronunciationProgress: createEmptyPronunciationProgress(),
+    preferences: { activeMode: "cards" },
+  };
 }
 
 function isValidCard(card) {
@@ -119,6 +129,31 @@ function sanitizeExerciseProgress(value) {
   };
 }
 
+function sanitizePronunciationProgress(value) {
+  const empty = createEmptyPronunciationProgress();
+  if (!value || typeof value !== "object") return empty;
+  if (!value.ratings || typeof value.ratings !== "object" || Array.isArray(value.ratings)) return empty;
+  if (!Array.isArray(value.boostedIds)) return empty;
+
+  const ratings = Object.fromEntries(
+    Object.entries(value.ratings).filter(([id, rating]) =>
+      PRONUNCIATION_IDS.has(id) &&
+      rating && typeof rating === "object" &&
+      ["repeat", "known"].includes(rating.rating) &&
+      Number.isInteger(rating.streak) && rating.streak >= 0 &&
+      Number.isFinite(rating.dueAt) &&
+      Number.isFinite(rating.lastRatedAt),
+    ),
+  );
+  const boostedIds = [...new Set(value.boostedIds.filter((id) => PRONUNCIATION_IDS.has(id)))];
+  return { ratings, boostedIds };
+}
+
+function sanitizePreferences(value) {
+  const activeMode = ACTIVE_MODES.has(value?.activeMode) ? value.activeMode : "cards";
+  return { activeMode };
+}
+
 export function loadPrivateState(storage) {
   try {
     const raw = storage.getItem(PRIVATE_STORAGE_KEY);
@@ -132,7 +167,9 @@ export function loadPrivateState(storage) {
       Object.entries(value.progress).filter(([, entry]) => isValidProgressEntry(entry)),
     );
     const exerciseProgress = sanitizeExerciseProgress(value.exerciseProgress);
-    return { cards, progress, exerciseProgress };
+    const pronunciationProgress = sanitizePronunciationProgress(value.pronunciationProgress);
+    const preferences = sanitizePreferences(value.preferences);
+    return { cards, progress, exerciseProgress, pronunciationProgress, preferences };
   } catch {
     return emptyPrivateState();
   }
@@ -146,6 +183,8 @@ export function savePrivateState(storage, state) {
         cards: state.cards,
         progress: state.progress,
         exerciseProgress: state.exerciseProgress ?? createEmptyExerciseProgress(),
+        pronunciationProgress: state.pronunciationProgress ?? createEmptyPronunciationProgress(),
+        preferences: sanitizePreferences(state.preferences),
       }),
     );
     return true;
