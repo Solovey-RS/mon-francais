@@ -13,6 +13,8 @@ import {
 
 const card = { id: "demo-1", prompt: "Добрый день", answer: "Bonjour" };
 const emptyExercises = { attempts: {}, retryQueue: [], boostedIds: [] };
+const emptyPronunciation = { ratings: {}, boostedIds: [] };
+const defaultPreferences = { activeMode: "cards" };
 
 test("a new session does not expose the French answer", () => {
   const session = createSession(card);
@@ -55,12 +57,24 @@ test("private state is stored only under the supplied local storage key", () => 
     getItem: (key) => memory.get(key) ?? null,
     setItem: (key, value) => memory.set(key, value),
   };
-  const state = { cards: [card], progress: {}, exerciseProgress: emptyExercises };
+  const state = {
+    cards: [card],
+    progress: {},
+    exerciseProgress: emptyExercises,
+    pronunciationProgress: emptyPronunciation,
+    preferences: defaultPreferences,
+  };
   assert.equal(savePrivateState(storage, state), true);
   assert.deepEqual(loadPrivateState(storage), state);
   assert.equal(memory.size, 1);
   memory.set("french-solovey.private.v1", "{broken");
-  assert.deepEqual(loadPrivateState(storage), { cards: [], progress: {}, exerciseProgress: emptyExercises });
+  assert.deepEqual(loadPrivateState(storage), {
+    cards: [],
+    progress: {},
+    exerciseProgress: emptyExercises,
+    pronunciationProgress: emptyPronunciation,
+    preferences: defaultPreferences,
+  });
 });
 
 test("invalid cards and progress entries are discarded without breaking valid data", () => {
@@ -78,6 +92,8 @@ test("invalid cards and progress entries are discarded without breaking valid da
     cards: [valid],
     progress: { "private-1": { dueAt: 100, streak: 2, lastRating: "known" } },
     exerciseProgress: emptyExercises,
+    pronunciationProgress: emptyPronunciation,
+    preferences: defaultPreferences,
   });
 });
 
@@ -92,6 +108,8 @@ test("older storage gains empty exercise state without losing cards or progress"
     cards: [card],
     progress: { "demo-1": { dueAt: 100, streak: 1, lastRating: "known" } },
     exerciseProgress: emptyExercises,
+    pronunciationProgress: emptyPronunciation,
+    preferences: defaultPreferences,
   });
 });
 
@@ -107,6 +125,8 @@ test("invalid exercise state resets without losing valid flashcard state", () =>
     cards: [card],
     progress: {},
     exerciseProgress: emptyExercises,
+    pronunciationProgress: emptyPronunciation,
+    preferences: defaultPreferences,
   });
 });
 
@@ -134,6 +154,43 @@ test("unknown exercise IDs and stale retry entries are removed during migration"
       retryQueue: ["pronoun-nous"],
       boostedIds: ["pronoun-nous"],
     },
+    pronunciationProgress: emptyPronunciation,
+    preferences: defaultPreferences,
+  });
+});
+
+test("pronunciation state and active mode are sanitized independently", () => {
+  const validRating = {
+    rating: "known",
+    streak: 2,
+    dueAt: 10_000,
+    lastRatedAt: 5_000,
+  };
+  const storage = {
+    getItem: () => JSON.stringify({
+      cards: [card],
+      progress: {},
+      exerciseProgress: emptyExercises,
+      pronunciationProgress: {
+        ratings: {
+          "vowel-a": validRating,
+          "vowel-i": { rating: "known", dueAt: "tomorrow" },
+          ghost: validRating,
+        },
+        boostedIds: ["ghost", "vowel-a", "vowel-a"],
+      },
+      preferences: { activeMode: "mystery" },
+    }),
+  };
+  assert.deepEqual(loadPrivateState(storage), {
+    cards: [card],
+    progress: {},
+    exerciseProgress: emptyExercises,
+    pronunciationProgress: {
+      ratings: { "vowel-a": validRating },
+      boostedIds: ["vowel-a"],
+    },
+    preferences: defaultPreferences,
   });
 });
 

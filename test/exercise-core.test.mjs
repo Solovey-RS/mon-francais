@@ -4,12 +4,17 @@ import assert from "node:assert/strict";
 import {
   checkExerciseAnswer,
   createEmptyExerciseProgress,
+  describeExerciseRow,
+  gradeExerciseBlock,
+  gradeExerciseLine,
   normalizeFrenchAnswer,
   recordExerciseAttempt,
+  selectNextExerciseBlockId,
   selectNextExerciseId,
+  shouldInitializeExerciseView,
   toggleExerciseBoost,
 } from "../src/exercise-core.js";
-import { LESSON_ONE_EXERCISES } from "../src/exercises.js";
+import { LESSON_ONE_BLOCKS, LESSON_ONE_EXERCISES } from "../src/exercises.js";
 
 test("answer normalization ignores case, spacing, apostrophe style, and terminal punctuation", () => {
   assert.equal(normalizeFrenchAnswer("  COMMENT   TU T’APPELLES ? "), "comment tu t'appelles");
@@ -81,4 +86,90 @@ test("Leçon 1 covers all approved topics with authored explanations", () => {
   assert.deepEqual(topics, new Set(["Местоимения", "Être", "S’appeler", "Прилагательные"]));
   assert.ok(LESSON_ONE_EXERCISES.length >= 12);
   assert.ok(LESSON_ONE_EXERCISES.every((item) => item.answers.length >= 1 && item.explanation.length > 20));
+});
+
+test("Leçon 1 groups every stable exercise into approved 5/6/5 blocks", () => {
+  assert.deepEqual(LESSON_ONE_BLOCKS.map((block) => block.exerciseIds.length), [5, 6, 5]);
+  assert.equal(new Set(LESSON_ONE_BLOCKS.map((block) => block.id)).size, 3);
+  assert.deepEqual(
+    LESSON_ONE_BLOCKS.flatMap((block) => block.exerciseIds).sort(),
+    LESSON_ONE_EXERCISES.map((exercise) => exercise.id).sort(),
+  );
+});
+
+test("line grading conceals corrections until final review", () => {
+  const exercise = LESSON_ONE_EXERCISES.find((item) => item.id === "etre-je");
+  assert.deepEqual(gradeExerciseLine(exercise, "Je es français", false), {
+    isAnswered: true,
+    isCorrect: false,
+    canonicalAnswer: null,
+    explanation: null,
+  });
+  assert.deepEqual(gradeExerciseLine(exercise, "Je es français", true), {
+    isAnswered: true,
+    isCorrect: false,
+    canonicalAnswer: "Je suis français.",
+    explanation: exercise.explanation,
+  });
+});
+
+test("final block grading retries wrong and empty rows without exposing correct rows", () => {
+  const block = { id: "demo", exerciseIds: ["etre-je", "appel-question", "adj-gentille"] };
+  const exerciseMap = new Map(LESSON_ONE_EXERCISES.map((exercise) => [exercise.id, exercise]));
+  const result = gradeExerciseBlock(block, exerciseMap, {
+    "etre-je": "Je suis français",
+    "appel-question": "Comment tu appelle ?",
+    "adj-gentille": "",
+  }, true);
+  assert.deepEqual(result.correctIds, ["etre-je"]);
+  assert.deepEqual(result.retryIds, ["appel-question", "adj-gentille"]);
+  assert.equal(result.isComplete, false);
+  assert.equal(result.rows[0].canonicalAnswer, null);
+  assert.equal(result.rows[1].canonicalAnswer, "Comment tu t’appelles ?");
+  assert.equal(result.rows[2].isAnswered, false);
+  assert.equal(result.rows[2].canonicalAnswer, "Elle est gentille.");
+});
+
+test("block selection prioritizes Boost, then retry, then order without trapping current block", () => {
+  const blocks = [
+    { id: "a", exerciseIds: ["one", "two"] },
+    { id: "b", exerciseIds: ["three"] },
+    { id: "c", exerciseIds: ["four"] },
+  ];
+  const progress = {
+    attempts: {},
+    retryQueue: ["four"],
+    boostedIds: ["three"],
+  };
+  assert.equal(selectNextExerciseBlockId(blocks, progress, "a"), "b");
+  assert.equal(selectNextExerciseBlockId(blocks, progress, "b"), "c");
+  assert.equal(selectNextExerciseBlockId(blocks, createEmptyExerciseProgress(), "a"), "b");
+  assert.equal(selectNextExerciseBlockId([{ id: "only", exerciseIds: ["one"] }], progress, "only"), "only");
+});
+
+test("block selection visits every block once before repeating Boost priorities", () => {
+  const blocks = [
+    { id: "a", exerciseIds: ["one"] },
+    { id: "b", exerciseIds: ["two"] },
+    { id: "c", exerciseIds: ["three"] },
+  ];
+  const progress = { attempts: {}, retryQueue: [], boostedIds: ["one"] };
+  const visited = new Set(["a"]);
+  const second = selectNextExerciseBlockId(blocks, progress, "a", visited);
+  visited.add(second);
+  const third = selectNextExerciseBlockId(blocks, progress, second, visited);
+  assert.deepEqual([second, third], ["b", "c"]);
+});
+
+test("exercise row copy preserves its specific transformation instruction", () => {
+  const exercise = LESSON_ONE_EXERCISES.find((item) => item.id === "adj-francaise");
+  assert.deepEqual(describeExerciseRow(exercise, 3), {
+    label: "3. Il est français. → …",
+    instruction: "Поставьте фразу в женский род",
+  });
+});
+
+test("an existing exercise view is not rebuilt when returning to its tab", () => {
+  assert.equal(shouldInitializeExerciseView(0), true);
+  assert.equal(shouldInitializeExerciseView(5), false);
 });

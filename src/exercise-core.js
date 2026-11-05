@@ -23,6 +23,45 @@ export function checkExerciseAnswer(exercise, input) {
   };
 }
 
+export function gradeExerciseLine(exercise, input, reveal = false) {
+  const isAnswered = String(input ?? "").trim().length > 0;
+  const result = checkExerciseAnswer(exercise, input);
+  const revealCorrection = reveal && !result.isCorrect;
+  return {
+    isAnswered,
+    isCorrect: result.isCorrect,
+    canonicalAnswer: revealCorrection ? result.canonicalAnswer : null,
+    explanation: revealCorrection ? result.explanation : null,
+  };
+}
+
+export function gradeExerciseBlock(block, exerciseMap, answers, reveal = false) {
+  const rows = block.exerciseIds.map((id) => {
+    const exercise = exerciseMap.get(id);
+    if (!exercise) throw new TypeError(`Unknown exercise: ${id}`);
+    return { id, ...gradeExerciseLine(exercise, answers[id] ?? "", reveal) };
+  });
+  const correctIds = rows.filter((row) => row.isCorrect).map((row) => row.id);
+  const retryIds = rows.filter((row) => !row.isCorrect).map((row) => row.id);
+  return {
+    rows,
+    correctIds,
+    retryIds,
+    isComplete: retryIds.length === 0,
+  };
+}
+
+export function describeExerciseRow(exercise, position) {
+  return {
+    label: `${position}. ${exercise.prompt}`,
+    instruction: exercise.instruction,
+  };
+}
+
+export function shouldInitializeExerciseView(rowCount) {
+  return rowCount === 0;
+}
+
 export function recordExerciseAttempt(progress, exerciseId, answer, isCorrect, now = Date.now()) {
   const previous = progress.attempts[exerciseId];
   const attempts = {
@@ -78,4 +117,29 @@ export function selectNextExerciseId(exercises, progress, currentId = null) {
     if (!avoidCurrent || exercises[index].id !== currentId) return exercises[index].id;
   }
   return exercises[0].id;
+}
+
+export function selectNextExerciseBlockId(blocks, progress, currentBlockId = null, visitedIds = new Set()) {
+  if (!blocks.length) return null;
+  const unvisited = blocks.filter((block) => !visitedIds.has(block.id));
+  const candidates = unvisited.length ? unvisited : blocks;
+  const avoidCurrent = candidates.length > 1;
+  const eligible = (block) => candidates.includes(block) && (!avoidCurrent || block.id !== currentBlockId);
+
+  const boosted = candidates.find((block) =>
+    eligible(block) && block.exerciseIds.some((id) => progress.boostedIds.includes(id)),
+  );
+  if (boosted) return boosted.id;
+
+  const retry = candidates.find((block) =>
+    eligible(block) && block.exerciseIds.some((id) => progress.retryQueue.includes(id)),
+  );
+  if (retry) return retry.id;
+
+  const currentIndex = blocks.findIndex((block) => block.id === currentBlockId);
+  for (let offset = 1; offset <= blocks.length; offset += 1) {
+    const block = blocks[(currentIndex + offset + blocks.length) % blocks.length];
+    if (eligible(block)) return block.id;
+  }
+  return blocks[0].id;
 }

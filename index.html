@@ -36,8 +36,9 @@
         </section>
 
         <div class="mode-switch" role="tablist" aria-label="Режим занятия">
-          <button id="practice-mode" role="tab" aria-selected="true" aria-controls="practice-panel" type="button">Карточки</button>
-          <button id="exercise-mode" role="tab" aria-selected="false" aria-controls="exercise-panel" type="button">Exercices <span class="mode-badge">A1</span></button>
+          <button id="practice-mode" role="tab" aria-selected="true" aria-controls="practice-panel" tabindex="0" type="button">Карточки</button>
+          <button id="pronunciation-mode" role="tab" aria-selected="false" aria-controls="pronunciation-panel" tabindex="-1" type="button">Урок 0 <span class="mode-badge">Звуки</span></button>
+          <button id="exercise-mode" role="tab" aria-selected="false" aria-controls="exercise-panel" tabindex="-1" type="button">Урок 1 <span class="mode-badge">Перевод</span></button>
         </div>
 
         <section class="practice" id="practice-panel" role="tabpanel" aria-labelledby="practice-mode practice-title">
@@ -73,13 +74,62 @@
           <p class="form-error" id="practice-save-error" role="alert" hidden>Не удалось сохранить результат. Проверьте, что Safari разрешает локальное хранилище для этого сайта.</p>
         </section>
 
-        <section class="practice exercise-workspace" id="exercise-panel" role="tabpanel" aria-labelledby="exercise-mode exercise-title" hidden>
+        <section class="practice lesson-workspace" id="pronunciation-panel" role="tabpanel" aria-labelledby="pronunciation-mode pronunciation-title" hidden>
+          <div class="section-heading">
+            <div>
+              <p class="eyebrow">LEÇON 0 · PRONONCIATION</p>
+              <h2 id="pronunciation-title">Слушаем и повторяем</h2>
+            </div>
+            <span class="counter" id="pronunciation-counter">01 / 30</span>
+          </div>
+
+          <div class="exercise-stats" aria-label="Прогресс произношения">
+            <span><strong id="pronunciation-known-count">0</strong> получается</span>
+            <span><strong id="pronunciation-due-count">0</strong> повторить</span>
+            <span><strong id="pronunciation-boost-count">0</strong> Boost</span>
+          </div>
+
+          <article class="flashcard pronunciation-card">
+            <div class="exercise-meta">
+              <span class="topic-pill" id="pronunciation-module">Простые гласные</span>
+              <button class="boost-button" id="pronunciation-boost" type="button" aria-pressed="false">☆ Boost</button>
+            </div>
+            <p class="sound-pattern" id="pronunciation-pattern">a</p>
+            <p class="sound-explanation" id="pronunciation-explanation"></p>
+
+            <div class="model-word-panel">
+              <span>Эталонное слово</span>
+              <strong id="pronunciation-model-word" lang="fr"></strong>
+              <button class="speak-button" id="pronunciation-listen" type="button"><span aria-hidden="true">◖))</span> Слушать и повторить</button>
+            </div>
+
+            <div class="practice-words">
+              <p class="prompt-label">Прочитайте сами</p>
+              <ul id="pronunciation-practice-words" lang="fr"></ul>
+            </div>
+
+            <div class="bilan-panel">
+              <p class="prompt-label">Bilan модуля</p>
+              <p id="pronunciation-bilan" lang="fr"></p>
+              <button class="text-button" id="pronunciation-listen-bilan" type="button">Слушать Bilan</button>
+            </div>
+
+            <p class="rating-label">Как получилось?</p>
+            <div class="rating-buttons pronunciation-ratings">
+              <button id="pronunciation-repeat" type="button">Повторить</button>
+              <button id="pronunciation-known" type="button">Получается</button>
+            </div>
+          </article>
+          <p class="form-error" id="pronunciation-save-error" role="alert" hidden>Не удалось сохранить прогресс произношения. Проверьте настройки локального хранилища Safari.</p>
+        </section>
+
+        <section class="practice lesson-workspace" id="exercise-panel" role="tabpanel" aria-labelledby="exercise-mode exercise-title" hidden>
           <div class="section-heading">
             <div>
               <p class="eyebrow">LEÇON 1 · EXERCICES</p>
-              <h2 id="exercise-title">Напишите ответ по-французски</h2>
+              <h2 id="exercise-title">Переведите блок предложений</h2>
             </div>
-            <span class="counter" id="exercise-counter">01 / 16</span>
+            <span class="counter" id="exercise-counter">01 / 03</span>
           </div>
 
           <div class="exercise-stats" aria-label="Прогресс упражнений">
@@ -88,27 +138,15 @@
             <span><strong id="exercise-boost-count">0</strong> Boost</span>
           </div>
 
-          <article class="flashcard exercise-card">
+          <article class="flashcard exercise-card exercise-block-card">
             <div class="exercise-meta">
-              <span class="topic-pill" id="exercise-topic">Местоимения</span>
-              <button class="boost-button" id="exercise-boost" type="button" aria-pressed="false">☆ Boost</button>
+              <span class="topic-pill" id="exercise-block-title">Знакомимся</span>
             </div>
-            <p class="prompt-label" id="exercise-instruction">Переведите на французский</p>
-            <p class="exercise-prompt" id="exercise-prompt">Загрузка…</p>
-
-            <form class="exercise-form" id="exercise-form">
-              <label for="exercise-answer">Ваш ответ</label>
-              <input id="exercise-answer" name="answer" lang="fr" autocomplete="off" autocapitalize="sentences" spellcheck="true" required maxlength="180" />
-              <button class="primary-button" id="exercise-submit" type="submit">Проверить</button>
-            </form>
-
-            <div class="exercise-feedback" id="exercise-feedback" aria-live="polite" hidden>
-              <strong id="exercise-feedback-status"></strong>
-              <p><span>Правильный ответ:</span> <b id="exercise-canonical"></b></p>
-              <p id="exercise-explanation"></p>
-            </div>
-
-            <button class="secondary-button exercise-next" id="exercise-next" type="button" hidden>Следующее упражнение →</button>
+            <p class="prompt-label" id="exercise-instruction">Переведите предложения на французский</p>
+            <div class="exercise-rows" id="exercise-rows" aria-live="polite"></div>
+            <button class="primary-button" id="exercise-check-all" type="button">Проверить всё</button>
+            <button class="secondary-button exercise-next" id="exercise-retry-wrong" type="button" hidden>Исправить только ошибки</button>
+            <button class="secondary-button exercise-next" id="exercise-next-block" type="button" hidden>Следующий блок →</button>
           </article>
           <p class="form-error" id="exercise-save-error" role="alert" hidden>Не удалось сохранить прогресс упражнения. Проверьте настройки локального хранилища Safari.</p>
         </section>
