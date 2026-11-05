@@ -10,6 +10,9 @@ test("page carries the French Solovey brand and starts with answer controls hidd
   assert.match(html, /SOLAVEY RS/);
   assert.match(html, /id="answer-panel"[^>]*hidden/);
   assert.match(html, /id="reveal-button"/);
+  assert.match(html, /id="close-add-card"[^>]*type="button"/);
+  assert.match(html, /id="save-error"[^>]*hidden/);
+  assert.match(html, /id="practice-save-error"[^>]*hidden/);
 });
 
 test("all deployable asset references are relative for GitHub Pages subpaths", async () => {

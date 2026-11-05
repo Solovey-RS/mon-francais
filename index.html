@@ -65,6 +65,7 @@
               </div>
             </div>
           </article>
+          <p class="form-error" id="practice-save-error" role="alert" hidden>Не удалось сохранить результат. Проверьте, что Safari разрешает локальное хранилище для этого сайта.</p>
         </section>
 
         <section class="actions" aria-label="Управление уроками">
@@ -88,11 +89,12 @@
             <p class="eyebrow">ЛИЧНАЯ КАРТОЧКА</p>
             <h2>Добавить фразу</h2>
           </div>
-          <button class="icon-button" value="cancel" aria-label="Закрыть">×</button>
+          <button class="icon-button" id="close-add-card" type="button" aria-label="Закрыть">×</button>
         </div>
         <label>По-русски<input id="new-prompt" name="prompt" required maxlength="180" autocomplete="off" /></label>
         <label>По-французски<input id="new-answer" name="answer" required maxlength="180" lang="fr" autocomplete="off" /></label>
         <p class="form-note">Карточка сохранится только в Safari на этом устройстве.</p>
+        <p class="form-error" id="save-error" role="alert" hidden>Safari не разрешил сохранить карточку. Проверьте, что для сайта доступно локальное хранилище.</p>
         <button class="primary-button" value="default" type="submit">Сохранить карточку</button>
       </form>
     </dialog>

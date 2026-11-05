@@ -57,8 +57,38 @@ export function chooseFrenchVoice(voices) {
   );
 }
 
+export function nextDueIndex(cards, progress, currentIndex, now = Date.now()) {
+  for (let offset = 1; offset <= cards.length; offset += 1) {
+    const index = (currentIndex + offset) % cards.length;
+    const dueAt = progress[cards[index].id]?.dueAt;
+    if (!Number.isFinite(dueAt) || dueAt <= now) return index;
+  }
+  return -1;
+}
+
 function emptyPrivateState() {
   return { cards: [], progress: {} };
+}
+
+function isValidCard(card) {
+  return Boolean(
+    card &&
+    typeof card === "object" &&
+    typeof card.id === "string" && card.id.trim() &&
+    typeof card.prompt === "string" && card.prompt.trim() &&
+    typeof card.answer === "string" && card.answer.trim() &&
+    (card.deck === undefined || typeof card.deck === "string"),
+  );
+}
+
+function isValidProgressEntry(entry) {
+  return Boolean(
+    entry &&
+    typeof entry === "object" &&
+    Number.isFinite(entry.dueAt) &&
+    Number.isFinite(entry.streak) && entry.streak >= 0 &&
+    ["again", "hard", "known"].includes(entry.lastRating),
+  );
 }
 
 export function loadPrivateState(storage) {
@@ -69,15 +99,24 @@ export function loadPrivateState(storage) {
     if (!Array.isArray(value.cards) || !value.progress || typeof value.progress !== "object") {
       return emptyPrivateState();
     }
-    return { cards: value.cards, progress: value.progress };
+    const cards = value.cards.filter(isValidCard);
+    const progress = Object.fromEntries(
+      Object.entries(value.progress).filter(([, entry]) => isValidProgressEntry(entry)),
+    );
+    return { cards, progress };
   } catch {
     return emptyPrivateState();
   }
 }
 
 export function savePrivateState(storage, state) {
-  storage.setItem(
-    PRIVATE_STORAGE_KEY,
-    JSON.stringify({ cards: state.cards, progress: state.progress }),
-  );
+  try {
+    storage.setItem(
+      PRIVATE_STORAGE_KEY,
+      JSON.stringify({ cards: state.cards, progress: state.progress }),
+    );
+    return true;
+  } catch {
+    return false;
+  }
 }

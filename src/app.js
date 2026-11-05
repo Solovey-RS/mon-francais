@@ -2,6 +2,7 @@ import {
   chooseFrenchVoice,
   createSession,
   loadPrivateState,
+  nextDueIndex,
   rateCard,
   revealCard,
   savePrivateState,
@@ -39,6 +40,9 @@ const elements = {
   installButton: document.querySelector("#install-button"),
   installDialog: document.querySelector("#install-dialog"),
   shareButton: document.querySelector("#share-button"),
+  closeAddCard: document.querySelector("#close-add-card"),
+  saveError: document.querySelector("#save-error"),
+  practiceSaveError: document.querySelector("#practice-save-error"),
 };
 
 let privateState = loadPrivateState(window.localStorage);
@@ -71,7 +75,18 @@ function render() {
 }
 
 function moveToNextCard() {
-  currentIndex = (currentIndex + 1) % cards.length;
+  const nextIndex = nextDueIndex(cards, privateState.progress, currentIndex);
+  if (nextIndex === -1) {
+    elements.deckLabel.textContent = "ЗАНЯТИЕ ЗАВЕРШЕНО";
+    document.querySelector("#practice-title").textContent = "На сегодня всё";
+    elements.prompt.textContent = "Отличная работа. Карточки вернутся, когда подойдёт время повторения.";
+    elements.answerPanel.hidden = true;
+    elements.revealButton.hidden = true;
+    elements.cardCounter.textContent = "✓";
+    updateStats();
+    return;
+  }
+  currentIndex = nextIndex;
   session = createSession(cards[currentIndex]);
   render();
 }
@@ -123,16 +138,28 @@ elements.speakButton.addEventListener("click", () => {
 elements.ratingButtons.addEventListener("click", (event) => {
   const button = event.target.closest("button[data-rating]");
   if (!button || !session.canRate) return;
-  privateState.progress[session.card.id] = rateCard(
-    privateState.progress[session.card.id],
-    button.dataset.rating,
-  );
-  savePrivateState(window.localStorage, privateState);
+  const nextState = {
+    ...privateState,
+    progress: {
+      ...privateState.progress,
+      [session.card.id]: rateCard(privateState.progress[session.card.id], button.dataset.rating),
+    },
+  };
+  if (!savePrivateState(window.localStorage, nextState)) {
+    elements.practiceSaveError.hidden = false;
+    return;
+  }
+  elements.practiceSaveError.hidden = true;
+  privateState = nextState;
   moveToNextCard();
 });
 
 elements.addCardButton.addEventListener("click", () => elements.addCardDialog.showModal());
 elements.installButton.addEventListener("click", () => elements.installDialog.showModal());
+elements.closeAddCard.addEventListener("click", () => {
+  elements.saveError.hidden = true;
+  elements.addCardDialog.close();
+});
 
 elements.addCardForm.addEventListener("submit", (event) => {
   event.preventDefault();
@@ -142,8 +169,13 @@ elements.addCardForm.addEventListener("submit", (event) => {
 
   const id = `private-${globalThis.crypto?.randomUUID?.() ?? Date.now()}`;
   const newCard = { id, prompt, answer, deck: "Мои карточки" };
-  privateState.cards.push(newCard);
-  savePrivateState(window.localStorage, privateState);
+  const nextState = { ...privateState, cards: [...privateState.cards, newCard] };
+  if (!savePrivateState(window.localStorage, nextState)) {
+    elements.saveError.hidden = false;
+    return;
+  }
+  privateState = nextState;
+  elements.saveError.hidden = true;
   cards = [...publicCards, ...privateState.cards];
   currentIndex = cards.length - 1;
   session = createSession(newCard);
