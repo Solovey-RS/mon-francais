@@ -110,6 +110,33 @@ test("invalid exercise state resets without losing valid flashcard state", () =>
   });
 });
 
+test("unknown exercise IDs and stale retry entries are removed during migration", () => {
+  const wrongAttempt = { count: 1, correct: false, lastAnswer: "no", lastAttemptAt: 50 };
+  const storage = {
+    getItem: () => JSON.stringify({
+      cards: [card],
+      progress: {},
+      exerciseProgress: {
+        attempts: {
+          "pronoun-nous": wrongAttempt,
+          ghost: wrongAttempt,
+        },
+        retryQueue: ["ghost", "pronoun-nous", "etre-je"],
+        boostedIds: ["ghost", "pronoun-nous"],
+      },
+    }),
+  };
+  assert.deepEqual(loadPrivateState(storage), {
+    cards: [card],
+    progress: {},
+    exerciseProgress: {
+      attempts: { "pronoun-nous": wrongAttempt },
+      retryQueue: ["pronoun-nous"],
+      boostedIds: ["pronoun-nous"],
+    },
+  });
+});
+
 test("storage write failure is reported without throwing", () => {
   const storage = { setItem: () => { throw new Error("quota"); } };
   assert.equal(savePrivateState(storage, { cards: [], progress: {} }), false);
