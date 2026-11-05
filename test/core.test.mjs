@@ -12,6 +12,7 @@ import {
 } from "../src/core.js";
 
 const card = { id: "demo-1", prompt: "Добрый день", answer: "Bonjour" };
+const emptyExercises = { attempts: {}, retryQueue: [], boostedIds: [] };
 
 test("a new session does not expose the French answer", () => {
   const session = createSession(card);
@@ -54,12 +55,12 @@ test("private state is stored only under the supplied local storage key", () => 
     getItem: (key) => memory.get(key) ?? null,
     setItem: (key, value) => memory.set(key, value),
   };
-  const state = { cards: [card], progress: {} };
+  const state = { cards: [card], progress: {}, exerciseProgress: emptyExercises };
   assert.equal(savePrivateState(storage, state), true);
   assert.deepEqual(loadPrivateState(storage), state);
   assert.equal(memory.size, 1);
   memory.set("french-solovey.private.v1", "{broken");
-  assert.deepEqual(loadPrivateState(storage), { cards: [], progress: {} });
+  assert.deepEqual(loadPrivateState(storage), { cards: [], progress: {}, exerciseProgress: emptyExercises });
 });
 
 test("invalid cards and progress entries are discarded without breaking valid data", () => {
@@ -76,6 +77,63 @@ test("invalid cards and progress entries are discarded without breaking valid da
   assert.deepEqual(loadPrivateState(storage), {
     cards: [valid],
     progress: { "private-1": { dueAt: 100, streak: 2, lastRating: "known" } },
+    exerciseProgress: emptyExercises,
+  });
+});
+
+test("older storage gains empty exercise state without losing cards or progress", () => {
+  const storage = {
+    getItem: () => JSON.stringify({
+      cards: [card],
+      progress: { "demo-1": { dueAt: 100, streak: 1, lastRating: "known" } },
+    }),
+  };
+  assert.deepEqual(loadPrivateState(storage), {
+    cards: [card],
+    progress: { "demo-1": { dueAt: 100, streak: 1, lastRating: "known" } },
+    exerciseProgress: emptyExercises,
+  });
+});
+
+test("invalid exercise state resets without losing valid flashcard state", () => {
+  const storage = {
+    getItem: () => JSON.stringify({
+      cards: [card],
+      progress: {},
+      exerciseProgress: { attempts: null, retryQueue: [3], boostedIds: "all" },
+    }),
+  };
+  assert.deepEqual(loadPrivateState(storage), {
+    cards: [card],
+    progress: {},
+    exerciseProgress: emptyExercises,
+  });
+});
+
+test("unknown exercise IDs and stale retry entries are removed during migration", () => {
+  const wrongAttempt = { count: 1, correct: false, lastAnswer: "no", lastAttemptAt: 50 };
+  const storage = {
+    getItem: () => JSON.stringify({
+      cards: [card],
+      progress: {},
+      exerciseProgress: {
+        attempts: {
+          "pronoun-nous": wrongAttempt,
+          ghost: wrongAttempt,
+        },
+        retryQueue: ["ghost", "pronoun-nous", "etre-je"],
+        boostedIds: ["ghost", "pronoun-nous"],
+      },
+    }),
+  };
+  assert.deepEqual(loadPrivateState(storage), {
+    cards: [card],
+    progress: {},
+    exerciseProgress: {
+      attempts: { "pronoun-nous": wrongAttempt },
+      retryQueue: ["pronoun-nous"],
+      boostedIds: ["pronoun-nous"],
+    },
   });
 });
 

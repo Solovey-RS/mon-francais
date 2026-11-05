@@ -15,6 +15,23 @@ test("page carries the French Solovey brand and starts with answer controls hidd
   assert.match(html, /id="practice-save-error"[^>]*hidden/);
 });
 
+test("page exposes an accessible Exercices mode with answer, feedback, and Boost controls", async () => {
+  const html = await read("index.html");
+  assert.match(html, /id="practice-mode"[^>]*aria-selected="true"/);
+  assert.match(html, /id="exercise-mode"[^>]*aria-selected="false"/);
+  assert.match(html, /id="exercise-panel"[^>]*hidden/);
+  assert.match(html, /id="exercise-answer"[^>]*lang="fr"/);
+  assert.match(html, /id="exercise-feedback"[^>]*aria-live="polite"[^>]*hidden/);
+  assert.match(html, /id="exercise-boost"[^>]*type="button"/);
+});
+
+test("exercise modules are loaded without unsafe HTML rendering", async () => {
+  const app = await read("src/app.js");
+  assert.match(app, /from "\.\/exercise-core\.js"/);
+  assert.match(app, /from "\.\/exercises\.js"/);
+  assert.doesNotMatch(app, /\.innerHTML\s*=/);
+});
+
 test("all deployable asset references are relative for GitHub Pages subpaths", async () => {
   const html = await read("index.html");
   assert.doesNotMatch(html, /(?:src|href)="\/(?!\/)/);
@@ -34,9 +51,20 @@ test("manifest is installable and branded", async () => {
 
 test("service worker caches only the public application shell", async () => {
   const worker = await read("sw.js");
+  assert.match(worker, /french-solovey-v2/);
   assert.match(worker, /\.\/index\.html/);
   assert.match(worker, /\.\/src\/app\.js/);
+  assert.match(worker, /\.\/src\/exercise-core\.js/);
+  assert.match(worker, /\.\/src\/exercises\.js/);
   assert.doesNotMatch(worker, /localStorage|private\.v1|Campus|Ruslan/i);
+});
+
+test("README documents Exercices, retry, Boost, and local persistence", async () => {
+  const readme = await read("README.md");
+  assert.match(readme, /Exercices & Boost/);
+  assert.match(readme, /incorrect answers.*return/is);
+  assert.match(readme, /Boost.*until.*turn.*off/is);
+  assert.match(readme, /localStorage/);
 });
 
 test("public source contains no private lesson identifiers or API keys", async () => {

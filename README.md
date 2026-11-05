@@ -2,6 +2,12 @@
 
 Installable French flash cards by **Solavey RS**.
 
+## Exercices & Boost
+
+The A1 Leçon 1 exercise mode covers pronouns, `être`, `s’appeler`, and adjective agreement. Learners type a French answer, see a clear correction and explanation, edit the answer, and check it again. Explicitly authored alternatives are accepted; accents and grammar still matter.
+
+Incorrect answers return through the retry queue until they are corrected. **Boost** pins a word, form, or sentence to the priority queue and stays active until you turn it off yourself. Attempts, retry items, and Boost selections use the same device-only `localStorage` boundary as personal cards and review progress.
+
 ## What is public
 
 - The application shell and a small generic demo deck.
