@@ -49,10 +49,10 @@ test("Lesson 0 shell exposes model audio, Bilan, ratings, and Boost", async () =
 
 test("exercise modules are loaded without unsafe HTML rendering", async () => {
   const app = await read("src/app.js");
-  assert.match(app, /from "\.\/exercise-core\.js\?v=4"/);
-  assert.match(app, /from "\.\/exercises\.js\?v=4"/);
-  assert.match(app, /from "\.\/pronunciation-core\.js\?v=4"/);
-  assert.match(app, /from "\.\/pronunciation\.js\?v=4"/);
+  assert.match(app, /from "\.\/exercise-core\.js\?v=5"/);
+  assert.match(app, /from "\.\/exercises\.js\?v=5"/);
+  assert.match(app, /from "\.\/pronunciation-core\.js\?v=5"/);
+  assert.match(app, /from "\.\/pronunciation\.js\?v=5"/);
   assert.doesNotMatch(app, /\.innerHTML\s*=/);
 });
 
@@ -60,26 +60,28 @@ test("all deployable asset references are relative for GitHub Pages subpaths", a
   const html = await read("index.html");
   assert.doesNotMatch(html, /(?:src|href)="\/(?!\/)/);
   assert.match(html, /href="\.\/manifest\.webmanifest"/);
-  assert.match(html, /src="\.\/src\/app\.js\?v=4"/);
+  assert.match(html, /src="\.\/src\/app\.js\?v=5"/);
 });
 
 test("versioned shell assets bypass an older service-worker cache during upgrades", async () => {
   const html = await read("index.html");
   const worker = await read("sw.js");
-  assert.match(html, /href="\.\/styles\.css\?v=4"/);
-  assert.match(html, /src="\.\/src\/app\.js\?v=4"/);
-  assert.match(worker, /french-solovey-v4/);
-  assert.match(worker, /"\.\/styles\.css\?v=4"/);
-  assert.match(worker, /"\.\/src\/app\.js\?v=4"/);
+  assert.match(html, /href="\.\/styles\.css\?v=5"/);
+  assert.match(html, /src="\.\/src\/app\.js\?v=5"/);
+  assert.match(worker, /french-solovey-v5/);
+  assert.match(worker, /"\.\/styles\.css\?v=5"/);
+  assert.match(worker, /"\.\/src\/app\.js\?v=5"/);
 });
 
 test("every application module is versioned so an older worker cannot mix releases", async () => {
+  const html = await read("index.html");
   const app = await read("src/app.js");
   const worker = await read("sw.js");
   for (const modulePath of ["core.js", "exercise-core.js", "exercises.js", "pronunciation-core.js", "pronunciation.js"]) {
-    assert.match(app, new RegExp(`from "\\./${modulePath.replace(".", "\\.")}\\?v=4"`));
-    assert.match(worker, new RegExp(`"\\./src/${modulePath.replace(".", "\\.")}\\?v=4"`));
+    assert.match(app, new RegExp(`from "\\./${modulePath.replace(".", "\\.")}\\?v=5"`));
+    assert.match(worker, new RegExp(`"\\./src/${modulePath.replace(".", "\\.")}\\?v=5"`));
   }
+  assert.doesNotMatch(`${html}\n${app}\n${worker}`, /\?v=4|french-solovey-v4/);
 });
 
 test("manifest is installable and branded", async () => {
@@ -94,7 +96,7 @@ test("manifest is installable and branded", async () => {
 
 test("service worker caches only the public application shell", async () => {
   const worker = await read("sw.js");
-  assert.match(worker, /french-solovey-v4/);
+  assert.match(worker, /french-solovey-v5/);
   assert.match(worker, /\.\/index\.html/);
   assert.match(worker, /\.\/src\/app\.js/);
   assert.match(worker, /\.\/src\/exercise-core\.js/);

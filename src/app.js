@@ -6,7 +6,7 @@ import {
   rateCard,
   revealCard,
   savePrivateState,
-} from "./core.js?v=4";
+} from "./core.js?v=5";
 import {
   describeExerciseRow,
   gradeExerciseBlock,
@@ -15,14 +15,14 @@ import {
   selectNextExerciseBlockId,
   shouldInitializeExerciseView,
   toggleExerciseBoost,
-} from "./exercise-core.js?v=4";
-import { LESSON_ONE_BLOCKS, LESSON_ONE_EXERCISES } from "./exercises.js?v=4";
+} from "./exercise-core.js?v=5";
+import { LESSON_ONE_BLOCKS, LESSON_ONE_EXERCISES } from "./exercises.js?v=5";
 import {
   ratePronunciation,
   selectNextPronunciationItemId,
   togglePronunciationBoost,
-} from "./pronunciation-core.js?v=4";
-import { PRONUNCIATION_ITEMS, PRONUNCIATION_MODULES } from "./pronunciation.js?v=4";
+} from "./pronunciation-core.js?v=5";
+import { PRONUNCIATION_ITEMS, PRONUNCIATION_MODULES } from "./pronunciation.js?v=5";
 
 const publicCards = [
   { id: "public-bonjour", prompt: "Добрый день", answer: "Bonjour", deck: "Демо-урок" },
